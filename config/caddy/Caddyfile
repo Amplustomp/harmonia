@@ -1,0 +1,37 @@
+:8090 {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+	}
+
+	handle_path /fastfetch/* {
+		root * /srv/fastfetch
+		file_server
+	}
+
+	handle /aac {
+		reverse_proxy icecast:8000
+	}
+
+	handle /opus {
+		reverse_proxy icecast:8000
+	}
+
+	handle /flac {
+		reverse_proxy icecast:8000
+	}
+
+	handle /now-playing.json {
+		header Cache-Control "no-store, max-age=0"
+		root * /srv/state
+		rewrite * /now-playing.json
+		file_server
+	}
+
+	handle {
+		root * /srv/site
+		file_server
+	}
+}

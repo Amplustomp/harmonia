@@ -1,0 +1,44 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: harmonia-caddy
+    restart: unless-stopped
+    depends_on:
+      - icecast
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - ./config/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./web:/srv/site:ro
+      - ./data:/srv/state:ro
+      - /mnt/ssd-data/fastfetch/images:/srv/fastfetch:ro
+
+  icecast:
+    image: libretime/icecast:latest
+    container_name: harmonia-icecast
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${ICECAST_BIND:-127.0.0.1}:${ICECAST_PORT:-8000}:8000"
+
+  liquidsoap:
+    image: savonet/liquidsoap:v2.4.0
+    container_name: harmonia-liquidsoap
+    restart: unless-stopped
+    entrypoint:
+      - /bin/sh
+    depends_on:
+      - icecast
+    env_file:
+      - .env
+    volumes:
+      - "${MUSIC_DIR:-/mnt/ssd-data/Music/mp3}:/music:ro"
+      - ./data:/state
+      - ./config/liquidsoap/radio.liq:/etc/liquidsoap/radio.liq:ro
+    command:
+      - -c
+      - |
+        find /music -type f -iname "*.flac" | sort > /tmp/radio.m3u
+        test -s /tmp/radio.m3u
+        liquidsoap /etc/liquidsoap/radio.liq
