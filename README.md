@@ -177,4 +177,4 @@ Do not commit real passwords, generated metadata, logs, cache files, or playlist
 
 ## License
 
-No license has been declared yet. Until one is added, assume all rights reserved.
+MIT. See [`LICENSE`](LICENSE).
