@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Harmonia · Admethius Radio</title>
+    <meta name="description" content="Harmonia: radio self-hosted de Admethius, servida desde el homelab." />
+    <link rel="stylesheet" href="styles.css?v=private-streams-1" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="radio-card">
+        <div class="visual-panel">
+          <img id="mascot" alt="Imagen aleatoria de la colección fastfetch" />
+          <div class="soft-glow" aria-hidden="true"></div>
+        </div>
+
+        <section class="player-panel" aria-label="Radio player">
+          <p class="eyebrow">admethius.quest / radio</p>
+          <h1>Harmonia</h1>
+          <p class="subtitle">Radio casera para música, ruido bonito y tardes donde el homelab decide comportarse.</p>
+
+          <audio id="player" preload="none" crossorigin="anonymous">
+            <source src="/aac" type="audio/aac" />
+          </audio>
+
+          <div class="controls">
+            <button id="playButton" class="play-button" type="button" aria-label="Reproducir Harmonia">
+              <span id="playIcon" aria-hidden="true"></span>
+            </button>
+            <div>
+              <p id="status" class="status">Lista para transmitir</p>
+              <p id="nowPlayingTitle" class="hint">Cargando metadata...</p>
+            </div>
+          </div>
+
+          <div class="links">
+            <button id="shuffleMascot" type="button">Cambiar mascot</button>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js?v=private-streams-1" type="module"></script>
+  </body>
+</html>
