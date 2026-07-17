@@ -5,7 +5,6 @@ source_password = environment.get("ICECAST_SOURCE_PASSWORD")
 music = playlist(
   id="harmonia-flac-playlist",
   mode="randomize",
-  reload=600,
   "/tmp/radio.m3u"
 )
 
