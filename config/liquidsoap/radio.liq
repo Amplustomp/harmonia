@@ -38,7 +38,19 @@ end
 radio = metadata.map(clean_metadata, radio)
 
 def write_metadata(m) =
-  file.write(data=metadata.json.stringify(metadata.cover.remove(m)), "/state/now-playing.json")
+  clean = metadata.cover.remove(m)
+  file.write(data=metadata.json.stringify(clean), "/state/now-playing.json")
+
+  entry = {
+    played_at = time.string("%Y-%m-%dT%H:%M:%S%z"),
+    played_at_epoch = time(),
+    artist = m["artist"],
+    title = m["title"],
+    tracknumber = m["tracknumber"],
+    album = m["album"],
+    genre = m["genre"]
+  }
+  file.write(data="#{json.stringify(compact=true, entry)}\n", append=true, "/state/played-history.jsonl")
 end
 
 radio.on_metadata(synchronous=true, write_metadata)
