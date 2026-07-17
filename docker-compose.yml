@@ -7,10 +7,13 @@ services:
       - icecast
     ports:
       - "127.0.0.1:8090:8090"
+      - "${LIBRARY_BIND:-0.0.0.0}:${LIBRARY_PORT:-8091}:8091"
     volumes:
       - ./config/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./web:/srv/site:ro
+      - ./library:/srv/library:ro
       - ./data:/srv/state:ro
+      - "${MUSIC_DIR:-/mnt/ssd-data/Music/mp3}:/library:ro"
       - /mnt/ssd-data/fastfetch/images:/srv/fastfetch:ro
 
   icecast:
@@ -39,6 +42,56 @@ services:
     command:
       - -c
       - |
-        find /music -type f -iname "*.flac" | sort > /tmp/radio.m3u
+        mkdir -p /state/library
+        find /music -type f -iname "*.flac" | sort | awk '
+          function clean_title(path, title) {
+            title = path
+            sub(/^.*\//, "", title)
+            sub(/\.[Ff][Ll][Aa][Cc]$/, "", title)
+            sub(/^[0-9]+([._ -]+)?/, "", title)
+            gsub(/_/, " ", title)
+            return title
+          }
+
+          function json_escape(value) {
+            gsub(/\\/, "\\\\", value)
+            gsub(/"/, "\\\"", value)
+            return value
+          }
+
+          function liq_escape(value) {
+            gsub(/\\/, "\\\\", value)
+            gsub(/"/, "\\\"", value)
+            return value
+          }
+
+          BEGIN {
+            manifest = "/state/library/manifest.json"
+            print "[" > manifest
+          }
+
+          {
+            path = $0
+            rel = path
+            sub(/^\/music\//, "", rel)
+            title = clean_title(path)
+            track = sprintf("%03d", NR)
+            display = "Track " track " - " title
+            url = "/originals/" rel
+
+            printf "annotate:radio_track=\"%s\",tracknumber=\"%s\",title=\"%s\":%s\n", track, track, liq_escape(display), path
+
+            if (NR > 1) {
+              print "," >> manifest
+            }
+            printf "  { \"track\": \"%s\", \"title\": \"%s\", \"displayTitle\": \"%s\", \"path\": \"%s\", \"url\": \"%s\" }", track, json_escape(title), json_escape(display), json_escape(rel), json_escape(url) >> manifest
+          }
+
+          END {
+            print "" >> manifest
+            print "]" >> manifest
+          }
+        ' > /tmp/radio.m3u
         test -s /tmp/radio.m3u
+        test -s /state/library/manifest.json
         liquidsoap /etc/liquidsoap/radio.liq

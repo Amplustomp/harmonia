@@ -19,10 +19,6 @@
 		reverse_proxy icecast:8000
 	}
 
-	handle /flac {
-		reverse_proxy icecast:8000
-	}
-
 	handle /now-playing.json {
 		header Cache-Control "no-store, max-age=0"
 		root * /srv/state
@@ -32,6 +28,39 @@
 
 	handle {
 		root * /srv/site
+		file_server
+	}
+}
+
+:8091 {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+	}
+
+	@notLocalLibrary {
+		not remote_ip 127.0.0.1/32 ::1/128 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10
+	}
+
+	respond @notLocalLibrary 403
+
+	handle /manifest.json {
+		header Cache-Control "no-store, max-age=0"
+		root * /srv/state/library
+		rewrite * /manifest.json
+		file_server
+	}
+
+	handle_path /originals/* {
+		root * /library
+		file_server
+	}
+
+	handle {
+		root * /srv/library
+		try_files {path} /index.html
 		file_server
 	}
 }

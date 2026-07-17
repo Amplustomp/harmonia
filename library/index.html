@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Harmonia Library · Local FLAC</title>
+    <meta name="description" content="Biblioteca local de Harmonia para buscar Track XX y reproducir FLAC originales." />
+    <style>
+      :root {
+        --ink: #f8fbff;
+        --muted: #c5d7ef;
+        --deep: #11172b;
+        --deepest: #0b1024;
+        --button-ink: #17223d;
+        --sky-top: #92d9ff;
+        --sky-mid: #4f99dd;
+        --sky-low: #18254b;
+        --ink-rgb: 248, 251, 255;
+        --muted-rgb: 197, 215, 239;
+        --deep-rgb: 8, 12, 28;
+        --deepest-rgb: 11, 16, 36;
+        --panel-rgb: 22, 27, 52;
+        --violet-panel-rgb: 30, 24, 50;
+        --cyan-rgb: 155, 231, 255;
+        --blue-rgb: 113, 191, 255;
+        --pink-rgb: 246, 168, 215;
+        --cream-rgb: 255, 243, 207;
+        --panel: rgba(var(--panel-rgb), 0.62);
+        --panel-strong: rgba(var(--deepest-rgb), 0.74);
+        --line: rgba(var(--ink-rgb), 0.18);
+        --line-strong: rgba(var(--ink-rgb), 0.32);
+        --cyan: #9be7ff;
+        --blue: #72b7ff;
+        --pink: #f6a8d7;
+        --cream: #fff3cf;
+        --shadow: 0 28px 90px rgba(var(--deep-rgb), 0.42);
+        --shadow-soft: 0 18px 52px rgba(var(--deep-rgb), 0.28);
+        --space-1: 6px;
+        --space-2: 10px;
+        --space-3: 14px;
+        --space-4: 18px;
+        --space-5: 24px;
+        --space-6: 32px;
+        --space-7: 44px;
+        --radius-pill: 999px;
+        --radius-card: 34px;
+        --radius-panel: 24px;
+        --duration-fast: 160ms;
+      }
+
+      * { box-sizing: border-box; }
+
+      html { min-height: 100%; }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        color: var(--ink);
+        font-family: "Aptos", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at 50% 12%, rgba(var(--ink-rgb), 0.38), transparent 22rem),
+          radial-gradient(circle at 82% 54%, rgba(var(--pink-rgb), 0.2), transparent 28rem),
+          radial-gradient(circle at 13% 76%, rgba(var(--cyan-rgb), 0.16), transparent 24rem),
+          linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 34%, var(--sky-low) 70%, var(--deepest) 100%);
+        overflow-x: hidden;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background:
+          linear-gradient(180deg, rgba(var(--ink-rgb), 0.32), transparent 18%),
+          radial-gradient(ellipse at 50% 0%, rgba(var(--ink-rgb), 0.42), transparent 34rem);
+        opacity: 0.75;
+      }
+
+      body::after {
+        content: "";
+        position: fixed;
+        left: -8vw;
+        right: -8vw;
+        bottom: -12vh;
+        height: 35vh;
+        pointer-events: none;
+        background:
+          radial-gradient(ellipse at 22% 100%, rgba(var(--deep-rgb), 0.55), transparent 35%),
+          radial-gradient(ellipse at 78% 100%, rgba(var(--deep-rgb), 0.44), transparent 33%);
+        filter: blur(14px);
+      }
+
+      a { color: inherit; }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      :focus-visible {
+        outline: 3px solid var(--cream);
+        outline-offset: 4px;
+      }
+
+      .shell {
+        position: relative;
+        z-index: 1;
+        width: min(1240px, 100%);
+        min-height: 100vh;
+        margin: 0 auto;
+        padding: clamp(var(--space-4), 5vw, 64px);
+      }
+
+      .library-card {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-card);
+        background: linear-gradient(145deg, rgba(var(--panel-rgb), 0.74), rgba(var(--violet-panel-rgb), 0.52));
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(24px) saturate(1.15);
+      }
+
+      .hero {
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.72fr);
+        gap: var(--space-6);
+        padding: clamp(var(--space-6), 6vw, 70px);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(circle at 78% 28%, rgba(var(--cyan-rgb), 0.2), transparent 20rem),
+          linear-gradient(120deg, rgba(var(--ink-rgb), 0.08), transparent 44%);
+      }
+
+      .hero-copy,
+      .library-signal {
+        position: relative;
+      }
+
+      .eyebrow {
+        margin: 0 0 var(--space-4);
+        color: var(--cyan);
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 820px;
+        margin: 0 0 var(--space-4);
+        color: var(--cream);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(58px, 9vw, 118px);
+        line-height: 0.86;
+        letter-spacing: -0.075em;
+        text-shadow: 0 10px 36px rgba(var(--deep-rgb), 0.22);
+      }
+
+      .subtitle {
+        max-width: 690px;
+        margin: 0;
+        color: var(--muted);
+        font-size: clamp(18px, 2vw, 24px);
+      }
+
+      .library-signal {
+        align-self: stretch;
+        display: grid;
+        align-content: end;
+        min-height: 260px;
+        padding: var(--space-5);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-panel);
+        background:
+          linear-gradient(180deg, rgba(var(--ink-rgb), 0.1), transparent 42%),
+          radial-gradient(circle at 50% 15%, rgba(var(--cyan-rgb), 0.2), transparent 46%),
+          rgba(var(--blue-rgb), 0.14);
+        box-shadow: var(--shadow-soft);
+      }
+
+      .track-glyph {
+        position: absolute;
+        top: var(--space-5);
+        right: var(--space-5);
+        color: rgba(var(--cream-rgb), 0.18);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(70px, 9vw, 136px);
+        font-weight: 900;
+        letter-spacing: -0.08em;
+        line-height: 0.8;
+      }
+
+      .signal-title {
+        margin: 0 0 var(--space-2);
+        color: var(--ink);
+        font-size: 20px;
+        font-weight: 900;
+      }
+
+      .signal-copy {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .search-panel {
+        display: grid;
+        gap: var(--space-4);
+        padding: clamp(var(--space-5), 4vw, 42px) clamp(var(--space-5), 5vw, 58px);
+        background: rgba(var(--deepest-rgb), 0.18);
+      }
+
+      .search-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: var(--space-3);
+        align-items: end;
+      }
+
+      .search-field {
+        display: grid;
+        gap: var(--space-2);
+      }
+
+      label {
+        color: var(--cyan);
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      input[type="search"] {
+        width: 100%;
+        min-height: 58px;
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-pill);
+        color: var(--ink);
+        background: rgba(var(--ink-rgb), 0.1);
+        padding: 0 var(--space-5);
+        box-shadow: inset 0 1px 0 rgba(var(--ink-rgb), 0.08);
+      }
+
+      input[type="search"]::placeholder {
+        color: rgba(var(--muted-rgb), 0.72);
+      }
+
+      .clear-button,
+      .link-button {
+        min-height: 48px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-pill);
+        color: var(--ink);
+        background: rgba(var(--ink-rgb), 0.08);
+        font-weight: 850;
+        text-decoration: none;
+        cursor: pointer;
+        transition: transform var(--duration-fast) ease, background var(--duration-fast) ease, border-color var(--duration-fast) ease;
+      }
+
+      .clear-button {
+        padding: 0 var(--space-5);
+      }
+
+      .clear-button:hover,
+      .link-button:hover {
+        border-color: var(--line-strong);
+        background: rgba(var(--ink-rgb), 0.15);
+        transform: translateY(-1px);
+      }
+
+      .summary-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        align-items: center;
+        justify-content: space-between;
+        color: var(--muted);
+      }
+
+      .count {
+        margin: 0;
+        font-weight: 850;
+      }
+
+      .tip {
+        margin: 0;
+      }
+
+      .results {
+        display: grid;
+        gap: var(--space-4);
+        padding: 0 clamp(var(--space-5), 5vw, 58px) clamp(var(--space-5), 5vw, 58px);
+      }
+
+      .track-card {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: var(--space-4);
+        padding: var(--space-4);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-panel);
+        background:
+          linear-gradient(135deg, rgba(var(--ink-rgb), 0.1), transparent 48%),
+          var(--panel);
+        box-shadow: var(--shadow-soft);
+      }
+
+      .track-number {
+        display: grid;
+        place-items: center;
+        width: 76px;
+        height: 76px;
+        border: 1px solid rgba(var(--ink-rgb), 0.34);
+        border-radius: 50%;
+        color: var(--button-ink);
+        background: linear-gradient(135deg, rgba(var(--cyan-rgb), 0.96), rgba(var(--cream-rgb), 0.94));
+        box-shadow: 0 18px 44px rgba(var(--blue-rgb), 0.22);
+        font-weight: 950;
+        letter-spacing: -0.04em;
+      }
+
+      .track-body {
+        min-width: 0;
+        display: grid;
+        gap: var(--space-3);
+      }
+
+      .track-heading {
+        min-width: 0;
+      }
+
+      .track-title {
+        margin: 0 0 var(--space-1);
+        color: var(--ink);
+        font-size: clamp(20px, 2.2vw, 28px);
+        font-weight: 900;
+      }
+
+      .track-meta,
+      .track-path {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .track-path {
+        overflow-wrap: anywhere;
+        font-size: 14px;
+      }
+
+      .player-row {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) auto;
+        gap: var(--space-3);
+        align-items: center;
+      }
+
+      audio {
+        width: 100%;
+        min-height: 42px;
+        color-scheme: dark;
+      }
+
+      .link-button {
+        display: inline-grid;
+        min-height: 44px;
+        place-items: center;
+        padding: 0 var(--space-4);
+        white-space: nowrap;
+      }
+
+      .state-card {
+        display: grid;
+        gap: var(--space-2);
+        padding: var(--space-6);
+        border: 1px dashed var(--line-strong);
+        border-radius: var(--radius-panel);
+        background: var(--panel-strong);
+        text-align: center;
+      }
+
+      .state-card strong {
+        color: var(--cream);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(28px, 5vw, 48px);
+        line-height: 0.95;
+        letter-spacing: -0.05em;
+      }
+
+      .state-card p {
+        max-width: 650px;
+        margin: 0 auto;
+        color: var(--muted);
+      }
+
+      @media (max-width: 860px) {
+        .hero,
+        .search-row,
+        .player-row {
+          grid-template-columns: 1fr;
+        }
+
+        .library-signal {
+          min-height: 210px;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .shell {
+          padding: var(--space-3);
+        }
+
+        .hero,
+        .search-panel,
+        .results {
+          padding-left: var(--space-4);
+          padding-right: var(--space-4);
+        }
+
+        .track-card {
+          grid-template-columns: 1fr;
+        }
+
+        .track-number {
+          width: 64px;
+          height: 64px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="library-card" aria-labelledby="pageTitle">
+        <header class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">localhost / harmonia library</p>
+            <h1 id="pageTitle">FLAC vault</h1>
+            <p class="subtitle">Busca el Track XX que escuchaste en la radio y abre el original local sin pelear con nombres de archivo imposibles.</p>
+          </div>
+          <aside class="library-signal" aria-label="Ayuda rápida">
+            <div class="track-glyph" aria-hidden="true">028</div>
+            <p class="signal-title">Radio ID a archivo real</p>
+            <p class="signal-copy">Prueba con <strong>28</strong>, <strong>Track 28</strong>, artista, título o la ruta original del FLAC.</p>
+          </aside>
+        </header>
+
+        <section class="search-panel" aria-label="Búsqueda de biblioteca">
+          <div class="search-row">
+            <div class="search-field">
+              <label for="searchInput">Buscar track local</label>
+              <input id="searchInput" type="search" autocomplete="off" placeholder="28, Track 028, artista, título o ruta" />
+            </div>
+            <button id="clearButton" class="clear-button" type="button">Limpiar</button>
+          </div>
+          <div class="summary-row" aria-live="polite" aria-atomic="true">
+            <p id="resultCount" class="count">Cargando manifest...</p>
+            <p class="tip">Cada tarjeta reproduce el FLAC servido desde <code>/originals</code>.</p>
+          </div>
+        </section>
+
+        <section id="results" class="results" aria-label="Resultados de biblioteca"></section>
+      </section>
+    </main>
+
+    <template id="trackTemplate">
+      <article class="track-card">
+        <div class="track-number"></div>
+        <div class="track-body">
+          <div class="track-heading">
+            <h2 class="track-title"></h2>
+            <p class="track-meta"></p>
+          </div>
+          <p class="track-path"></p>
+          <div class="player-row">
+            <audio controls preload="none"></audio>
+            <a class="link-button" href="#">Abrir / descargar</a>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script>
+      const searchInput = document.querySelector('#searchInput');
+      const clearButton = document.querySelector('#clearButton');
+      const resultCount = document.querySelector('#resultCount');
+      const results = document.querySelector('#results');
+      const trackTemplate = document.querySelector('#trackTemplate');
+
+      let library = [];
+      let visibleTracks = [];
+
+      function normalizeText(value) {
+        return String(value || '').trim().toLocaleLowerCase('es');
+      }
+
+      function normalizeTrackNumber(value) {
+        const match = normalizeText(value).match(/(?:track\s*)?0*(\d+)/);
+        if (!match) return '';
+        return String(Number(match[1])).padStart(3, '0');
+      }
+
+      function normalizeTrackQuery(value) {
+        const text = normalizeText(value);
+        if (!/^(?:track\s*)?0*\d+$/.test(text)) return '';
+        return normalizeTrackNumber(text);
+      }
+
+      function trackLabel(track) {
+        const normalized = normalizeTrackNumber(track);
+        return normalized ? `Track ${normalized}` : 'Track ???';
+      }
+
+      function displayTitle(item) {
+        return item.displayTitle || [trackLabel(item.track), item.title].filter(Boolean).join(' - ');
+      }
+
+      function searchableFields(item) {
+        const normalizedTrack = normalizeTrackNumber(item.track);
+        const looseTrack = normalizedTrack ? String(Number(normalizedTrack)) : '';
+        return [
+          normalizedTrack,
+          looseTrack,
+          normalizedTrack && `track ${normalizedTrack}`,
+          looseTrack && `track ${looseTrack}`,
+          item.artist,
+          item.albumArtist,
+          item.albumartist,
+          item.title,
+          displayTitle(item),
+          item.path,
+          item.url,
+        ].filter(Boolean).map(normalizeText);
+      }
+
+      function matchesQuery(item, query) {
+        const textQuery = normalizeText(query);
+        if (!textQuery) return true;
+
+        const numericQuery = normalizeTrackQuery(textQuery);
+        if (numericQuery) return normalizeTrackNumber(item.track) === numericQuery;
+
+        return searchableFields(item).some((field) => field.includes(textQuery));
+      }
+
+      function setState(title, message) {
+        results.innerHTML = '';
+        const state = document.createElement('div');
+        state.className = 'state-card';
+        state.innerHTML = `<strong>${title}</strong><p>${message}</p>`;
+        results.append(state);
+      }
+
+      function renderCount() {
+        const total = library.length;
+        const shown = visibleTracks.length;
+        const query = normalizeText(searchInput.value);
+
+        if (!total) {
+          resultCount.textContent = 'Manifest cargado sin tracks.';
+          return;
+        }
+
+        if (!query) {
+          resultCount.textContent = `${total} ${total === 1 ? 'track local' : 'tracks locales'} disponibles.`;
+          return;
+        }
+
+        resultCount.textContent = `${shown} de ${total} ${shown === 1 ? 'resultado' : 'resultados'} para "${searchInput.value}".`;
+      }
+
+      function renderTracks() {
+        results.innerHTML = '';
+        visibleTracks.forEach((item) => {
+          const node = trackTemplate.content.firstElementChild.cloneNode(true);
+          const normalizedTrack = normalizeTrackNumber(item.track);
+          const label = trackLabel(item.track);
+          const artist = item.artist || item.albumArtist || item.albumartist || 'Artista sin metadata';
+          const title = displayTitle(item);
+          const path = item.path || item.url || 'Ruta no disponible';
+          const audio = node.querySelector('audio');
+          const link = node.querySelector('a');
+
+          node.querySelector('.track-number').textContent = normalizedTrack || '???';
+          node.querySelector('.track-title').textContent = title;
+          node.querySelector('.track-meta').textContent = `${label} · ${artist}`;
+          node.querySelector('.track-path').textContent = path;
+
+          audio.src = item.url || '';
+          audio.setAttribute('aria-label', `Reproducir ${title}`);
+
+          link.href = item.url || '#';
+          link.download = path.split('/').pop() || '';
+          link.setAttribute('aria-label', `Abrir o descargar ${title}`);
+          if (!item.url) link.setAttribute('aria-disabled', 'true');
+
+          results.append(node);
+        });
+      }
+
+      function applySearch() {
+        visibleTracks = library.filter((item) => matchesQuery(item, searchInput.value));
+        renderCount();
+
+        if (!library.length) {
+          setState('La bóveda está vacía', 'El manifest respondió bien, pero no trae entradas para mostrar. Otra travesura elegante del homelab.');
+          return;
+        }
+
+        if (!visibleTracks.length) {
+          setState('Sin coincidencias', 'Prueba el número limpio, tipo 28, o busca por un pedazo del artista, título o ruta original.');
+          return;
+        }
+
+        renderTracks();
+      }
+
+      async function loadManifest() {
+        try {
+          const response = await fetch('/manifest.json', { cache: 'no-store' });
+          if (!response.ok) throw new Error(`Manifest HTTP ${response.status}`);
+
+          const manifest = await response.json();
+          if (!Array.isArray(manifest)) throw new Error('Manifest is not an array');
+
+          library = manifest;
+          applySearch();
+        } catch (error) {
+          library = [];
+          visibleTracks = [];
+          resultCount.textContent = 'No pude cargar /manifest.json.';
+          setState('Manifest no disponible', 'Esta página no asume build ni archivo local previo. Cuando Caddy sirva /manifest.json, la biblioteca aparece aquí.');
+          console.error(error);
+        }
+      }
+
+      searchInput.addEventListener('input', applySearch);
+      clearButton.addEventListener('click', () => {
+        searchInput.value = '';
+        searchInput.focus();
+        applySearch();
+      });
+
+      loadManifest();
+    </script>
+  </body>
+</html>
