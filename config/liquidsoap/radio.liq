@@ -11,6 +11,32 @@ music = playlist(
 
 radio = mksafe(music)
 
+def add_unique(acc, item) =
+  item = string.trim(item)
+  if item == "" or list.mem(item, acc) then
+    acc
+  else
+    list.append(acc, [item])
+  end
+end
+
+def dedupe_csv(value) =
+  parts = string.split(separator=",", value)
+  unique = list.fold(add_unique, [], parts)
+  string.concat(separator=", ", unique)
+end
+
+def clean_metadata(m) =
+  artist = m["artist"]
+  if artist == "" then
+    []
+  else
+    [("artist", dedupe_csv(artist))]
+  end
+end
+
+radio = metadata.map(clean_metadata, radio)
+
 def write_metadata(m) =
   file.write(data=metadata.json.stringify(metadata.cover.remove(m)), "/state/now-playing.json")
 end
@@ -41,20 +67,6 @@ output.icecast(
   description="Admethius local self-hosted radio - mobile/browser AAC stream",
   genre="music",
   url="https://radio.admethius.quest/aac",
-  public=false,
-  radio
-)
-
-output.icecast(
-  %ogg(%flac(compression=5)),
-  host="icecast",
-  port=8000,
-  password=source_password,
-  mount="flac",
-  name="Harmonia FLAC",
-  description="Admethius local self-hosted radio - hi-fi FLAC stream",
-  genre="music",
-  url="https://radio.admethius.quest/flac",
   public=false,
   radio
 )
