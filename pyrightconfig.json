@@ -1,0 +1,10 @@
+{
+  "include": ["src", "tests"],
+  "typeCheckingMode": "basic",
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "extraPaths": ["src"]
+    }
+  ]
+}
