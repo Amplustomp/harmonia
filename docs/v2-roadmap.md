@@ -129,6 +129,17 @@ The first technical spike should compare these strategies and choose the least f
 - Document failure modes and fallback behavior.
 - Produce a small simulation using the current 128-track manifest.
 
+Read-only scheduler spike commands:
+
+```bash
+uv run harmonia-scheduler reset --seed local-spike
+uv run harmonia-scheduler next
+uv run harmonia-scheduler simulate --count 128 --seed local-spike
+uv run python -m unittest discover -s tests
+```
+
+The spike reads `data/library/manifest.json`, writes only `data/scheduler/state.json` for persisted `next` state, and prints Liquidsoap-compatible annotated URI lines without changing Docker, Liquidsoap, Caddy, the web player, or `data/played-history.jsonl`.
+
 Exit criteria:
 
 - A chosen integration path.

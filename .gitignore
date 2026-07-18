@@ -2,3 +2,7 @@
 .jarvis/
 data/
 *.log
+__pycache__/
+*.py[cod]
+.venv/
+dist/
