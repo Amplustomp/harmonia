@@ -56,6 +56,15 @@ Candidate endpoints:
 - `GET /history`
 - `GET /stats`
 - `GET /queue`
+
+Current read-only file slice:
+
+- `harmonia-scheduler stats` prints stats JSON, or writes it with `--output data/stats.json`.
+- Private Caddy `:8091` exposes `/stats.json`, `/played-history.jsonl`, and `/scheduler-state.json` behind the existing local/LAN/Cloudflare Access guard.
+- The public player on `:8090` stays independent of stats.
+
+Future controls:
+
 - `POST /tracks/:id/boost`
 - `POST /tracks/:id/ban`
 - `POST /scheduler/rebuild`

@@ -13,6 +13,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from harmonia_scheduler.cli import main
 from harmonia_scheduler.scheduler import Scheduler, SchedulerError, annotate, build_library_tracks, load_manifest, simulate
+from harmonia_scheduler.stats import build_stats, load_played_history
 
 
 MANIFEST_ITEMS = [
@@ -325,6 +326,155 @@ class SchedulerTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(len(track_ids), len(MANIFEST_ITEMS))
         self.assertEqual(len(set(track_ids)), len(MANIFEST_ITEMS))
+
+    def test_build_stats_reports_cycle_history_and_tops(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            manifest_path = write_manifest(temp_path)
+            state_path = temp_path / "scheduler" / "state.json"
+            history_path = temp_path / "played-history.jsonl"
+            scheduler = Scheduler(load_manifest(manifest_path), seed="stats")
+            first = scheduler.next_track()
+            second = scheduler.next_track()
+            scheduler.save(state_path)
+            history_path.write_text(
+                "\n".join(
+                    [
+                        json.dumps(
+                            {
+                                "played_at": "2026-01-01T00:00:00+0000",
+                                "played_at_epoch": 1.0,
+                                "artist": "Artist A",
+                                "title": first.display_title,
+                                "tracknumber": first.track,
+                                "album": "Album A",
+                                "genre": "Anime",
+                            }
+                        ),
+                        "",
+                        json.dumps(
+                            {
+                                "played_at": "2026-01-01T00:03:00+0000",
+                                "played_at_epoch": 2.0,
+                                "artist": "Artist B",
+                                "title": second.display_title,
+                                "tracknumber": second.track,
+                                "album": "Album B",
+                                "genre": "J-Pop",
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "played_at": "2026-01-01T00:06:00+0000",
+                                "played_at_epoch": 3.0,
+                                "artist": "Artist A",
+                                "title": first.display_title,
+                                "tracknumber": first.track,
+                                "album": "Album A",
+                                "genre": "Anime",
+                            }
+                        ),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            stats = build_stats(manifest_path, state_path, history_path, recent_limit=2, top_limit=2)
+
+        self.assertEqual(stats["track_count"], len(MANIFEST_ITEMS))
+        self.assertEqual(stats["scheduler"]["cycle"], 0)
+        self.assertEqual(stats["scheduler"]["position"], 2)
+        self.assertEqual(stats["scheduler"]["progress"]["played"], 2)
+        self.assertEqual(stats["scheduler"]["progress"]["pending"], 1)
+        self.assertEqual(len(stats["pending_tracks"]), 1)
+        self.assertEqual([item["track"] for item in stats["recently_played"]], [first.track, second.track])
+        self.assertEqual(stats["top_tracks"][0]["track"], first.track)
+        self.assertEqual(stats["top_tracks"][0]["plays"], 2)
+        self.assertEqual(stats["top_artists"][0], {"artist": "Artist A", "plays": 2})
+
+    def test_played_history_rejects_malformed_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            history_path = Path(temp_dir) / "played-history.jsonl"
+            history_path.write_text(
+                json.dumps(
+                    {
+                        "played_at": "2026-01-01T00:00:00+0000",
+                        "played_at_epoch": 1.0,
+                        "artist": "Artist A",
+                        "title": "Track 001 - First Song",
+                        "tracknumber": "001",
+                        "album": "Album A",
+                        "genre": "Anime",
+                    }
+                )
+                + "\nnot-json\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(SchedulerError, "line 2"):
+                load_played_history(history_path)
+
+    def test_played_history_rejects_invalid_shape(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            history_path = Path(temp_dir) / "played-history.jsonl"
+            history_path.write_text(json.dumps(["not", "object"]) + "\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(SchedulerError, "line 1"):
+                load_played_history(history_path)
+
+    def test_cli_stats_prints_json_without_writing_state(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            manifest_path = write_manifest(temp_path)
+            state_path = temp_path / "state.json"
+            history_path = temp_path / "played-history.jsonl"
+            history_path.write_text("", encoding="utf-8")
+            stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout):
+                code = main([
+                    "--manifest",
+                    str(manifest_path),
+                    "--state",
+                    str(state_path),
+                    "--history",
+                    str(history_path),
+                    "stats",
+                ])
+
+            output = json.loads(stdout.getvalue())
+
+        self.assertEqual(code, 0)
+        self.assertEqual(output["track_count"], len(MANIFEST_ITEMS))
+        self.assertEqual(output["scheduler"]["position"], 0)
+        self.assertFalse(state_path.exists())
+
+    def test_cli_stats_output_writes_json_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            manifest_path = write_manifest(temp_path)
+            history_path = temp_path / "played-history.jsonl"
+            output_path = temp_path / "stats.json"
+            history_path.write_text("", encoding="utf-8")
+            stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout):
+                code = main([
+                    "--manifest",
+                    str(manifest_path),
+                    "--history",
+                    str(history_path),
+                    "stats",
+                    "--output",
+                    str(output_path),
+                ])
+
+            output = json.loads(output_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(code, 0)
+        self.assertIn(f"wrote scheduler stats: {output_path}", stdout.getvalue())
+        self.assertEqual(output["track_count"], len(MANIFEST_ITEMS))
 
 
 if __name__ == "__main__":

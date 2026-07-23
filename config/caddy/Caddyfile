@@ -64,6 +64,27 @@
 			file_server
 		}
 
+		handle /stats.json {
+			header Cache-Control "no-store, max-age=0"
+			root * /srv/state
+			rewrite * /stats.json
+			file_server
+		}
+
+		handle /played-history.jsonl {
+			header Cache-Control "no-store, max-age=0"
+			root * /srv/state
+			rewrite * /played-history.jsonl
+			file_server
+		}
+
+		handle /scheduler-state.json {
+			header Cache-Control "no-store, max-age=0"
+			root * /srv/state/scheduler
+			rewrite * /state.json
+			file_server
+		}
+
 		handle_path /originals/* {
 			root * /library
 			file_server

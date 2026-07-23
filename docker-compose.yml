@@ -67,8 +67,8 @@ services:
       - -c
       - |
         mkdir -p /state/library /state/scheduler
-        touch /state/now-playing.json /state/played-history.jsonl
-        chown liquidsoap:liquidsoap /state /state/now-playing.json /state/played-history.jsonl
+        touch /state/now-playing.json /state/played-history.jsonl /state/stats.json
+        chown liquidsoap:liquidsoap /state /state/now-playing.json /state/played-history.jsonl /state/stats.json
         chown -R liquidsoap:liquidsoap /state/scheduler
         PYTHONPATH=/app/src python3 -m harmonia_scheduler.cli library --music-root /music --manifest-output /state/library/manifest.json --playlist-output /tmp/radio.m3u
         test -s /tmp/radio.m3u
@@ -80,4 +80,22 @@ services:
           echo "harmonia: scheduler playlist generation failed; Liquidsoap will use /tmp/radio.m3u fallback" >&2
           rm -f /state/scheduler/radio.m3u.tmp /state/scheduler/radio.m3u
         fi
+
+        refresh_stats() {
+          if su -s /bin/sh liquidsoap -c 'PYTHONPATH=/app/src python3 -m harmonia_scheduler.cli --manifest /state/library/manifest.json --state /state/scheduler/state.json --history /state/played-history.jsonl stats --output /state/stats.json.tmp'; then
+            mv /state/stats.json.tmp /state/stats.json
+          else
+            echo "harmonia: scheduler stats generation failed; keeping existing stats file" >&2
+            rm -f /state/stats.json.tmp
+          fi
+        }
+
+        refresh_stats
+        (
+          while true; do
+            sleep "${STATS_REFRESH_SECONDS:-60}"
+            refresh_stats
+          done
+        ) &
+
         exec su -s /bin/sh liquidsoap -c 'liquidsoap /etc/liquidsoap/radio.liq'

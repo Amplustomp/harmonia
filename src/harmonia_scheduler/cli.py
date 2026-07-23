@@ -4,6 +4,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from .stats import DEFAULT_HISTORY_PATH, build_stats, format_stats, write_stats
+
 from .scheduler import (
     DEFAULT_MANIFEST_PATH,
     DEFAULT_STATE_PATH,
@@ -25,6 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="harmonia-scheduler")
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST_PATH, help="manifest JSON path")
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE_PATH, help="scheduler state JSON path")
+    parser.add_argument("--history", type=Path, default=DEFAULT_HISTORY_PATH, help="played history JSONL path")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -50,6 +53,11 @@ def build_parser() -> argparse.ArgumentParser:
     library_parser.add_argument("--music-root", type=Path, required=True, help="mounted music directory to scan")
     library_parser.add_argument("--manifest-output", type=Path, required=True, help="manifest JSON output path")
     library_parser.add_argument("--playlist-output", type=Path, required=True, help="fallback annotated playlist output path")
+
+    stats_parser = subparsers.add_parser("stats", help="print read-only playback stats as JSON")
+    stats_parser.add_argument("--output", type=Path, help="stats JSON output path; stdout is used when omitted")
+    stats_parser.add_argument("--recent-limit", type=int, default=10, help="number of recent plays to include")
+    stats_parser.add_argument("--top-limit", type=int, default=10, help="number of top tracks and artists to include")
 
     return parser
 
@@ -101,6 +109,21 @@ def main(argv: list[str] | None = None) -> int:
             write_manifest(args.manifest_output, tracks)
             write_playlist(args.playlist_output, [annotate(track) for track in tracks])
             print(f"indexed {len(tracks)} tracks: {args.manifest_output}")
+            return 0
+
+        if args.command == "stats":
+            stats = build_stats(
+                manifest_path=args.manifest,
+                state_path=args.state,
+                history_path=args.history,
+                recent_limit=args.recent_limit,
+                top_limit=args.top_limit,
+            )
+            if args.output is None:
+                print(format_stats(stats), end="")
+            else:
+                write_stats(args.output, stats)
+                print(f"wrote scheduler stats: {args.output}")
             return 0
     except SchedulerError as exc:
         print(f"harmonia-scheduler: {exc}", file=sys.stderr)

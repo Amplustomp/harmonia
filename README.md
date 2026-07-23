@@ -133,6 +133,15 @@ data/scheduler/state.json
 
 That state tracks generated playlist position, not confirmed playback. The authoritative record of what actually played remains `data/played-history.jsonl`.
 
+Read-only playback stats can be generated as JSON without touching streaming state:
+
+```bash
+uv run harmonia-scheduler stats
+uv run harmonia-scheduler stats --output data/stats.json
+```
+
+The stats include total track count, generated scheduler state, playback-cycle progress inferred from `played-history.jsonl`, pending tracks, recent plays, top tracks, and top artists. The Liquidsoap container refreshes `data/stats.json` every `STATS_REFRESH_SECONDS` seconds, defaulting to 60. Caddy exposes `/stats.json`, `/played-history.jsonl`, and `/scheduler-state.json` only on the private `:8091` library surface, behind the same LAN/Cloudflare Access guard as `/manifest.json`. The public player on `:8090` does not depend on these files.
+
 To pick up newly added albums:
 
 ```bash
