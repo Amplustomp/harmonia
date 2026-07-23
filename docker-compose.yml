@@ -7,7 +7,7 @@ services:
       - icecast
     ports:
       - "127.0.0.1:8090:8090"
-      - "${LIBRARY_BIND:-0.0.0.0}:${LIBRARY_PORT:-8091}:8091"
+      - "${LIBRARY_BIND:-127.0.0.1}:${LIBRARY_PORT:-8091}:8091"
     volumes:
       - ./config/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./web:/srv/site:ro
@@ -15,6 +15,25 @@ services:
       - ./data:/srv/state:ro
       - "${MUSIC_DIR:-/mnt/ssd-data/Music/mp3}:/library:ro"
       - /mnt/ssd-data/fastfetch/images:/srv/fastfetch:ro
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: harmonia-cloudflared
+    profiles:
+      - tunnel
+    user: "0:0"
+    restart: unless-stopped
+    depends_on:
+      - caddy
+    volumes:
+      - ./config/cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - "${CLOUDFLARED_CREDENTIALS_FILE:-/home/sergio/.cloudflared/203b947c-5c03-44f2-826b-bf0d02b8a8c3.json}:/etc/cloudflared/credentials.json:ro"
+    command:
+      - tunnel
+      - --config
+      - /etc/cloudflared/config.yml
+      - --no-autoupdate
+      - run
 
   icecast:
     image: libretime/icecast:latest

@@ -40,27 +40,39 @@
 		Referrer-Policy same-origin
 	}
 
-	@notLocalLibrary {
-		not remote_ip 127.0.0.1/32 ::1/128 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10
-	}
+	route {
+		@notLocalLibrary {
+			# Includes localhost, RFC1918 LANs, Docker bridge networks, and Tailscale CGNAT.
+			not remote_ip 127.0.0.1/32 ::1/128 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 100.64.0.0/10
+		}
 
-	respond @notLocalLibrary 403
+		respond @notLocalLibrary 403
 
-	handle /manifest.json {
-		header Cache-Control "no-store, max-age=0"
-		root * /srv/state/library
-		rewrite * /manifest.json
-		file_server
-	}
+		@libraryHostWithoutAccess {
+			host library.admethius.quest
+			not {
+				header Cf-Access-Jwt-Assertion *
+			}
+		}
 
-	handle_path /originals/* {
-		root * /library
-		file_server
-	}
+		respond @libraryHostWithoutAccess 403
 
-	handle {
-		root * /srv/library
-		try_files {path} /index.html
-		file_server
+		handle /manifest.json {
+			header Cache-Control "no-store, max-age=0"
+			root * /srv/state/library
+			rewrite * /manifest.json
+			file_server
+		}
+
+		handle_path /originals/* {
+			root * /library
+			file_server
+		}
+
+		handle {
+			root * /srv/library
+			try_files {path} /index.html
+			file_server
+		}
 	}
 }

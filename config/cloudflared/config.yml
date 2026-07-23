@@ -1,0 +1,7 @@
+tunnel: 203b947c-5c03-44f2-826b-bf0d02b8a8c3
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  - hostname: library.admethius.quest
+    service: http://caddy:8091
+  - service: http_status:404

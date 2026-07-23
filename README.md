@@ -150,7 +150,7 @@ Update the image mount in `docker-compose.yml` if your folder is somewhere else.
 
 ## Publishing behind a tunnel or reverse proxy
 
-This repo binds the Caddy frontend to localhost by default:
+This repo binds the public player frontend to localhost by default:
 
 ```text
 127.0.0.1:8090
@@ -163,6 +163,58 @@ Example route:
 ```text
 radio.example.com -> http://localhost:8090
 ```
+
+## Private library UI through Cloudflare Access
+
+The library UI is prepared for `library.admethius.quest` behind Cloudflare Tunnel and Cloudflare Access. The intended public route is:
+
+```text
+library.admethius.quest -> http://caddy:8091
+```
+
+`8091` is the private library surface. Caddy still allows direct requests from localhost, private LAN ranges, Docker bridge networks, and Tailscale CGNAT (`100.64.0.0/10`). Everyone else gets a boring `403`, as they should.
+
+Docker port publishing cannot express "LAN-only" generically across hosts. For that reason the default is deliberately local-only:
+
+```env
+LIBRARY_BIND=127.0.0.1
+LIBRARY_PORT=8091
+```
+
+If you want direct LAN access, opt in on a trusted LAN/firewall:
+
+```env
+LIBRARY_BIND=0.0.0.0
+```
+
+Cloudflare Access remains the internet-facing gate. Do not add custom JWT code here; Access already does that job, and duplicating it would be premium-grade yak shaving.
+
+Tomorrow's Cloudflare setup:
+
+1. Use the dedicated `harmonia-library` tunnel.
+2. Keep its credentials JSON outside git and point `.env` at it with `CLOUDFLARED_CREDENTIALS_FILE=...`.
+3. Route `library.admethius.quest` to the `harmonia-library` tunnel.
+4. Create a Cloudflare Access self-hosted app for `library.admethius.quest`.
+5. Add an Access policy that only allows the explicit trusted email addresses Sergio chooses.
+6. Do not configure JWT custom validation in Harmonia.
+
+Start or restart the stack after adding the token:
+
+```bash
+docker compose --profile tunnel up -d
+docker compose logs -f cloudflared caddy
+```
+
+Verify the local and tunnel paths:
+
+```bash
+curl -I http://127.0.0.1:8091/
+docker compose ps cloudflared
+```
+
+Without the `tunnel` profile, `cloudflared` stays off and the regular radio stack keeps starting normally.
+
+Then open `https://library.admethius.quest` from outside the LAN and confirm Cloudflare Access asks for an allowed email before showing the library UI. Also confirm a non-allowed email is rejected, because otherwise the gate is cosplay.
 
 ## Repository hygiene
 

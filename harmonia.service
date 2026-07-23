@@ -1,0 +1,19 @@
+[Unit]
+Description=Harmonia radio stack
+Requires=docker.service
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=sergio
+Group=sergio
+WorkingDirectory=/mnt/ssd-data/homelab/harmonia
+ExecStart=/usr/bin/docker compose --profile tunnel up -d --remove-orphans
+ExecStop=/usr/bin/docker compose --profile tunnel down
+RemainAfterExit=yes
+TimeoutStartSec=0
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target
