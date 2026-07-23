@@ -118,7 +118,7 @@ Candidate integration strategies with Liquidsoap:
 2. Use a Liquidsoap dynamic request source that asks the scheduler for the next track.
 3. Generate a queue file and trigger controlled reloads only at safe boundaries.
 
-The first technical spike should compare these strategies and choose the least fragile one.
+Chosen path for the safe runtime slice: generate a managed playlist file at `data/scheduler/radio.m3u` (container path `/state/scheduler/radio.m3u`) and let Liquidsoap consume it in normal order. Liquidsoap keeps `/tmp/radio.m3u` as the v1 fallback and uses it whenever the managed playlist is missing or empty.
 
 ## Milestones
 
@@ -135,14 +135,15 @@ Read-only scheduler spike commands:
 uv run harmonia-scheduler reset --seed local-spike
 uv run harmonia-scheduler next
 uv run harmonia-scheduler simulate --count 128 --seed local-spike
+uv run harmonia-scheduler playlist --output data/scheduler/radio.m3u
 uv run python -m unittest discover -s tests
 ```
 
-The spike reads `data/library/manifest.json`, writes only `data/scheduler/state.json` for persisted `next` state, and prints Liquidsoap-compatible annotated URI lines without changing Docker, Liquidsoap, Caddy, the web player, or `data/played-history.jsonl`.
+The scheduler reads `data/library/manifest.json`, writes only `data/scheduler/state.json` and generated playlist files under `data/scheduler/`, and prints Liquidsoap-compatible annotated URI lines without touching source music, Caddy, the web player, or `data/played-history.jsonl`. Without `--output`, `playlist` is a dry run and does not update scheduler state; with `--output`, it advances and saves state after writing the playlist. When `--count` is omitted, `playlist` emits one full manifest cycle.
 
 Exit criteria:
 
-- A chosen integration path.
+- Generated-playlist integration selected and documented.
 - A working local prototype or proof that the path is not viable.
 - No changes to production streaming behavior.
 
@@ -158,7 +159,7 @@ Exit criteria:
 
 - No track repeats before cycle exhaustion in simulation.
 - Cooldown behavior is deterministic and testable.
-- Fallback to v1.0 behavior is documented.
+- Fallback to v1.0 behavior is documented: remove or empty `data/scheduler/radio.m3u` and restart Liquidsoap to use `/tmp/radio.m3u`.
 
 ### Milestone 3: Runtime Integration
 

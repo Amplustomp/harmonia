@@ -3,8 +3,9 @@ from __future__ import annotations
 import hashlib
 import json
 import random
+import re
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 
@@ -46,6 +47,11 @@ def load_manifest(path: Path = DEFAULT_MANIFEST_PATH) -> list[Track]:
             url = str(item["url"])
         except KeyError as exc:
             raise SchedulerError(f"manifest item {index} is missing {exc.args[0]!r}") from exc
+        _validate_track_id(track, index)
+        _validate_text(title, f"manifest item {index} title")
+        _validate_text(display_title, f"manifest item {index} displayTitle")
+        _validate_track_path(rel_path, index)
+        _validate_text(url, f"manifest item {index} url")
         if track in seen:
             raise SchedulerError(f"manifest contains duplicate track id {track!r}")
         seen.add(track)
@@ -70,6 +76,51 @@ def annotate(track: Track) -> str:
         f'annotate:radio_track="{track.track}",tracknumber="{track.track}",'
         f'title="{display_title}":/music/{track.path}'
     )
+
+
+def build_library_tracks(music_root: Path) -> list[Track]:
+    if not music_root.exists():
+        raise SchedulerError(f"music root not found: {music_root}")
+    if not music_root.is_dir():
+        raise SchedulerError(f"music root is not a directory: {music_root}")
+
+    paths = sorted(path for path in music_root.rglob("*") if path.is_file() and path.suffix.lower() == ".flac")
+    if not paths:
+        raise SchedulerError(f"music root contains no FLAC files: {music_root}")
+
+    tracks: list[Track] = []
+    for index, path in enumerate(paths, start=1):
+        rel_path = path.relative_to(music_root).as_posix()
+        _validate_track_path(rel_path, index)
+        title = _clean_track_title(path.name)
+        track = f"{index:03d}"
+        display_title = f"Track {track} - {title}"
+        tracks.append(
+            Track(
+                track=track,
+                title=title,
+                display_title=display_title,
+                path=rel_path,
+                url=f"/originals/{rel_path}",
+            )
+        )
+
+    return tracks
+
+
+def write_manifest(path: Path, tracks: list[Track]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = [
+        {
+            "track": track.track,
+            "title": track.title,
+            "displayTitle": track.display_title,
+            "path": track.path,
+            "url": track.url,
+        }
+        for track in tracks
+    ]
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 class SchedulerError(RuntimeError):
@@ -99,6 +150,9 @@ class Scheduler:
         self.state["position"] += 1
         self.state["played_in_cycle"].append(track_id)
         return self._tracks_by_id[track_id]
+
+    def start_next_cycle(self) -> None:
+        self.state = self._new_state(seed=self.state.get("seed"), cycle=int(self.state["cycle"]) + 1)
 
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -154,6 +208,21 @@ def load_state(path: Path = DEFAULT_STATE_PATH) -> dict[str, Any] | None:
     return raw
 
 
+def generate_playlist(scheduler: Scheduler, count: int) -> list[str]:
+    if count < 1:
+        raise SchedulerError("playlist count must be positive")
+    return [annotate(scheduler.next_track()) for _ in range(count)]
+
+
+def write_playlist(path: Path, lines: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(format_playlist(lines), encoding="utf-8")
+
+
+def format_playlist(lines: list[str]) -> str:
+    return "#EXTM3U\n# Harmonia scheduler managed playlist\n" + "".join(f"{line}\n" for line in lines)
+
+
 def simulate(tracks: list[Track], count: int, seed: str | None = None) -> list[Track]:
     if count < 0:
         raise SchedulerError("simulation count must be non-negative")
@@ -178,6 +247,38 @@ def simulate(tracks: list[Track], count: int, seed: str | None = None) -> list[T
 
 def _liq_escape(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _clean_track_title(filename: str) -> str:
+    title = re.sub(r"\.[Ff][Ll][Aa][Cc]$", "", filename)
+    title = re.sub(r"^[0-9]+([._ -]+)?", "", title)
+    return title.replace("_", " ")
+
+
+def _validate_track_id(value: str, index: int) -> None:
+    _validate_text(value, f"manifest item {index} track")
+    if any(char in value for char in ('"', "'", ",", ":")):
+        raise SchedulerError(f"manifest item {index} track contains invalid playlist metadata characters")
+
+
+def _validate_text(value: str, label: str) -> None:
+    if _has_control_char(value):
+        raise SchedulerError(f"{label} contains control characters")
+
+
+def _validate_track_path(value: str, index: int) -> None:
+    _validate_text(value, f"manifest item {index} path")
+    if "\\" in value:
+        raise SchedulerError(f"manifest item {index} path must use POSIX separators")
+    path = PurePosixPath(value)
+    if path.is_absolute() or ".." in path.parts or "" in path.parts:
+        raise SchedulerError(f"manifest item {index} path must stay inside the music library")
+    if path.suffix.lower() != ".flac":
+        raise SchedulerError(f"manifest item {index} path must point to a FLAC file")
+
+
+def _has_control_char(value: str) -> bool:
+    return any(ord(char) < 32 or ord(char) == 127 for char in value)
 
 
 def _string_or_none(value: Any) -> str | None:

@@ -4,7 +4,21 @@ import argparse
 import sys
 from pathlib import Path
 
-from .scheduler import DEFAULT_MANIFEST_PATH, DEFAULT_STATE_PATH, Scheduler, SchedulerError, annotate, load_manifest, simulate
+from .scheduler import (
+    DEFAULT_MANIFEST_PATH,
+    DEFAULT_STATE_PATH,
+    Scheduler,
+    SchedulerError,
+    annotate,
+    build_library_tracks,
+    format_playlist,
+    generate_playlist,
+    load_manifest,
+    load_state,
+    simulate,
+    write_manifest,
+    write_playlist,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -22,6 +36,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     reset_parser = subparsers.add_parser("reset", help="reset scheduler state")
     reset_parser.add_argument("--seed", help="deterministic seed for future persisted selections")
+
+    playlist_parser = subparsers.add_parser("playlist", help="write or print a scheduler-managed annotated playlist")
+    playlist_parser.add_argument(
+        "--count",
+        type=int,
+        help="number of playlist entries to generate; defaults to the manifest size",
+    )
+    playlist_parser.add_argument("--output", type=Path, help="playlist output path; when set, scheduler state is advanced and saved")
+    playlist_parser.add_argument("--seed", help="deterministic seed for dry-run output or new persisted state")
+
+    library_parser = subparsers.add_parser("library", help="write manifest and v1 fallback playlist from a music directory")
+    library_parser.add_argument("--music-root", type=Path, required=True, help="mounted music directory to scan")
+    library_parser.add_argument("--manifest-output", type=Path, required=True, help="manifest JSON output path")
+    library_parser.add_argument("--playlist-output", type=Path, required=True, help="fallback annotated playlist output path")
 
     return parser
 
@@ -51,12 +79,34 @@ def main(argv: list[str] | None = None) -> int:
             scheduler.save(args.state)
             print(f"reset scheduler state: {args.state}")
             return 0
+
+        if args.command == "playlist":
+            tracks = load_manifest(args.manifest)
+            count = args.count if args.count is not None else len(tracks)
+            if args.output is None:
+                scheduler = Scheduler(tracks, seed=args.seed)
+                print(format_playlist(generate_playlist(scheduler, count)), end="")
+                return 0
+
+            scheduler = Scheduler(tracks, load_state(args.state), seed=args.seed)
+            if args.count is None and scheduler.state["position"] > 0:
+                scheduler.start_next_cycle()
+            write_playlist(args.output, generate_playlist(scheduler, count))
+            scheduler.save(args.state)
+            print(f"wrote scheduler playlist: {args.output}")
+            return 0
+
+        if args.command == "library":
+            tracks = build_library_tracks(args.music_root)
+            write_manifest(args.manifest_output, tracks)
+            write_playlist(args.playlist_output, [annotate(track) for track in tracks])
+            print(f"indexed {len(tracks)} tracks: {args.manifest_output}")
+            return 0
     except SchedulerError as exc:
         print(f"harmonia-scheduler: {exc}", file=sys.stderr)
         return 1
 
     parser.error(f"unknown command: {args.command}")
-    return 2
 
 
 if __name__ == "__main__":

@@ -45,8 +45,12 @@ services:
       - "${ICECAST_BIND:-127.0.0.1}:${ICECAST_PORT:-8000}:8000"
 
   liquidsoap:
-    image: savonet/liquidsoap:v2.4.0
+    build:
+      context: .
+      dockerfile: config/liquidsoap/Dockerfile
+    image: harmonia-liquidsoap:local
     container_name: harmonia-liquidsoap
+    user: "0:0"
     restart: unless-stopped
     entrypoint:
       - /bin/sh
@@ -58,59 +62,22 @@ services:
       - "${MUSIC_DIR:-/mnt/ssd-data/Music/mp3}:/music:ro"
       - ./data:/state
       - ./config/liquidsoap/radio.liq:/etc/liquidsoap/radio.liq:ro
+      - ./src:/app/src:ro
     command:
       - -c
       - |
-        mkdir -p /state/library
-        find /music -type f -iname "*.flac" | sort | awk '
-          function clean_title(path, title) {
-            title = path
-            sub(/^.*\//, "", title)
-            sub(/\.[Ff][Ll][Aa][Cc]$/, "", title)
-            sub(/^[0-9]+([._ -]+)?/, "", title)
-            gsub(/_/, " ", title)
-            return title
-          }
-
-          function json_escape(value) {
-            gsub(/\\/, "\\\\", value)
-            gsub(/"/, "\\\"", value)
-            return value
-          }
-
-          function liq_escape(value) {
-            gsub(/\\/, "\\\\", value)
-            gsub(/"/, "\\\"", value)
-            return value
-          }
-
-          BEGIN {
-            manifest = "/state/library/manifest.json"
-            print "[" > manifest
-          }
-
-          {
-            path = $0
-            rel = path
-            sub(/^\/music\//, "", rel)
-            title = clean_title(path)
-            track = sprintf("%03d", NR)
-            display = "Track " track " - " title
-            url = "/originals/" rel
-
-            printf "annotate:radio_track=\"%s\",tracknumber=\"%s\",title=\"%s\":%s\n", track, track, liq_escape(display), path
-
-            if (NR > 1) {
-              print "," >> manifest
-            }
-            printf "  { \"track\": \"%s\", \"title\": \"%s\", \"displayTitle\": \"%s\", \"path\": \"%s\", \"url\": \"%s\" }", track, json_escape(title), json_escape(display), json_escape(rel), json_escape(url) >> manifest
-          }
-
-          END {
-            print "" >> manifest
-            print "]" >> manifest
-          }
-        ' > /tmp/radio.m3u
+        mkdir -p /state/library /state/scheduler
+        touch /state/now-playing.json /state/played-history.jsonl
+        chown liquidsoap:liquidsoap /state /state/now-playing.json /state/played-history.jsonl
+        chown -R liquidsoap:liquidsoap /state/scheduler
+        PYTHONPATH=/app/src python3 -m harmonia_scheduler.cli library --music-root /music --manifest-output /state/library/manifest.json --playlist-output /tmp/radio.m3u
         test -s /tmp/radio.m3u
         test -s /state/library/manifest.json
-        liquidsoap /etc/liquidsoap/radio.liq
+        rm -f /state/scheduler/radio.m3u.tmp
+        if su -s /bin/sh liquidsoap -c 'PYTHONPATH=/app/src python3 -m harmonia_scheduler.cli --manifest /state/library/manifest.json --state /state/scheduler/state.json playlist --output /state/scheduler/radio.m3u.tmp'; then
+          mv /state/scheduler/radio.m3u.tmp /state/scheduler/radio.m3u
+        else
+          echo "harmonia: scheduler playlist generation failed; Liquidsoap will use /tmp/radio.m3u fallback" >&2
+          rm -f /state/scheduler/radio.m3u.tmp /state/scheduler/radio.m3u
+        fi
+        exec su -s /bin/sh liquidsoap -c 'liquidsoap /etc/liquidsoap/radio.liq'

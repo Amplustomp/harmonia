@@ -2,11 +2,20 @@
 
 source_password = environment.get("ICECAST_SOURCE_PASSWORD")
 
-music = playlist(
-  id="harmonia-flac-playlist",
-  mode="randomize",
-  "/tmp/radio.m3u"
-)
+music =
+  if process.test("test -s /state/scheduler/radio.m3u") then
+    playlist(
+      id="harmonia-scheduler-playlist",
+      mode="normal",
+      "/state/scheduler/radio.m3u"
+    )
+  else
+    playlist(
+      id="harmonia-flac-playlist",
+      mode="randomize",
+      "/tmp/radio.m3u"
+    )
+  end
 
 radio = mksafe(music)
 

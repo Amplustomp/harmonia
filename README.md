@@ -25,6 +25,8 @@ Services:
 - `icecast`: serves the audio streams
 - `caddy`: serves the static web player and proxies stream routes
 
+The Liquidsoap service builds a small local image (`harmonia-liquidsoap:local`) so the Python scheduler can run inside the same container before Liquidsoap starts.
+
 ## Public player behavior
 
 The web UI is deliberately normal-person friendly:
@@ -115,7 +117,21 @@ By default, `.env.example` points to:
 
 Yes, that directory name says `mp3` while the project reads FLAC files. Infrastructure is archaeology with a startup hoodie.
 
-On container start, Liquidsoap generates a temporary playlist from all `*.flac` files under `MUSIC_DIR`.
+On container start, Liquidsoap generates a temporary v1 playlist from all `*.flac` files under `MUSIC_DIR`, then the scheduler writes a managed playlist:
+
+```text
+data/scheduler/radio.m3u
+```
+
+Liquidsoap uses that managed playlist in normal order. If scheduler generation fails or the managed playlist is missing/empty, Liquidsoap falls back to the temporary v1 playlist at `/tmp/radio.m3u`.
+
+Scheduler state lives in:
+
+```text
+data/scheduler/state.json
+```
+
+That state tracks generated playlist position, not confirmed playback. The authoritative record of what actually played remains `data/played-history.jsonl`.
 
 To pick up newly added albums:
 

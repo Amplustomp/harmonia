@@ -1,5 +1,6 @@
 .env
 .jarvis/
+.sisyphus/
 data/
 *.log
 __pycache__/
