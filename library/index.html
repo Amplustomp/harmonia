@@ -123,9 +123,9 @@
       .hero {
         position: relative;
         display: grid;
-        grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.72fr);
-        gap: var(--space-6);
-        padding: clamp(var(--space-6), 6vw, 70px);
+        grid-template-columns: minmax(0, 1.12fr) minmax(220px, 0.42fr);
+        gap: var(--space-5);
+        padding: clamp(var(--space-5), 4vw, var(--space-7));
         border-bottom: 1px solid var(--line);
       }
 
@@ -154,29 +154,28 @@
       }
 
       h1 {
-        max-width: 820px;
-        margin: 0 0 var(--space-4);
+        max-width: 560px;
+        margin: 0 0 var(--space-3);
         color: var(--cream);
         font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(58px, 9vw, 118px);
-        line-height: 0.86;
-        letter-spacing: -0.075em;
+        font-size: clamp(34px, 5vw, 64px);
+        line-height: 0.94;
+        letter-spacing: -0.055em;
         text-shadow: 0 10px 36px rgba(var(--deep-rgb), 0.22);
       }
 
       .subtitle {
-        max-width: 690px;
+        max-width: 620px;
         margin: 0;
         color: var(--muted);
-        font-size: clamp(18px, 2vw, 24px);
+        font-size: clamp(16px, 1.45vw, 20px);
+        line-height: 1.45;
       }
 
       .library-signal {
-        align-self: stretch;
-        display: grid;
-        align-content: end;
-        min-height: 260px;
-        padding: var(--space-5);
+        align-self: center;
+        min-height: clamp(160px, 20vw, 220px);
+        overflow: hidden;
         border: 1px solid var(--line);
         border-radius: var(--radius-panel);
         background:
@@ -186,28 +185,49 @@
         box-shadow: var(--shadow-soft);
       }
 
-      .track-glyph {
+      .library-signal img {
+        width: 100%;
+        height: 100%;
+        min-height: inherit;
+        display: block;
+        object-fit: cover;
+        object-position: center;
+        filter: saturate(1.08) contrast(1.02);
+      }
+
+      .signal-glow {
         position: absolute;
-        top: var(--space-5);
-        right: var(--space-5);
-        color: rgba(var(--cream-rgb), 0.18);
-        font-family: Georgia, "Times New Roman", serif;
-        font-size: clamp(70px, 9vw, 136px);
-        font-weight: 900;
-        letter-spacing: -0.08em;
-        line-height: 0.8;
+        inset: 0;
+        pointer-events: none;
+        background:
+          linear-gradient(180deg, rgba(var(--ink-rgb), 0.14), transparent 42%),
+          radial-gradient(circle at 50% 15%, rgba(var(--cyan-rgb), 0.18), transparent 38%),
+          linear-gradient(0deg, rgba(var(--deepest-rgb), 0.3), transparent 34%);
+        mix-blend-mode: screen;
       }
 
-      .signal-title {
-        margin: 0 0 var(--space-2);
+      .sticker-button {
+        position: absolute;
+        right: var(--space-3);
+        bottom: var(--space-3);
+        min-height: 38px;
+        border: 1px solid rgba(var(--ink-rgb), 0.28);
+        border-radius: var(--radius-pill);
         color: var(--ink);
-        font-size: 20px;
-        font-weight: 900;
+        background: rgba(var(--deepest-rgb), 0.5);
+        padding: 0 var(--space-3);
+        box-shadow: 0 14px 34px rgba(var(--deep-rgb), 0.26);
+        font-size: 13px;
+        font-weight: 850;
+        cursor: pointer;
+        backdrop-filter: blur(12px) saturate(1.15);
+        transition: transform var(--duration-fast) ease, background var(--duration-fast) ease, border-color var(--duration-fast) ease;
       }
 
-      .signal-copy {
-        margin: 0;
-        color: var(--muted);
+      .sticker-button:hover {
+        border-color: var(--line-strong);
+        background: rgba(var(--deepest-rgb), 0.68);
+        transform: translateY(-1px);
       }
 
       .search-panel {
@@ -297,7 +317,7 @@
       .results {
         display: grid;
         gap: var(--space-4);
-        padding: 0 clamp(var(--space-5), 5vw, 58px) clamp(var(--space-5), 5vw, 58px);
+        padding: var(--space-5) clamp(var(--space-5), 5vw, 58px) clamp(var(--space-5), 5vw, 58px);
       }
 
       .track-card {
@@ -335,19 +355,35 @@
 
       .track-heading {
         min-width: 0;
+        display: grid;
+        gap: var(--space-1);
+      }
+
+      .track-artist {
+        margin: 0;
+        color: var(--cyan);
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        line-height: 1.2;
+        text-transform: uppercase;
+        overflow-wrap: anywhere;
       }
 
       .track-title {
-        margin: 0 0 var(--space-1);
+        margin: 0;
         color: var(--ink);
-        font-size: clamp(20px, 2.2vw, 28px);
-        font-weight: 900;
+        font-size: clamp(17px, 1.6vw, 22px);
+        font-weight: 850;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
       }
 
       .track-meta,
       .track-path {
         margin: 0;
         color: var(--muted);
+        line-height: 1.45;
       }
 
       .track-path {
@@ -408,7 +444,7 @@
         }
 
         .library-signal {
-          min-height: 210px;
+          min-height: clamp(180px, 38vw, 240px);
         }
       }
 
@@ -444,10 +480,10 @@
             <h1 id="pageTitle">FLAC vault</h1>
             <p class="subtitle">Busca el Track XX que escuchaste en la radio y abre el original local sin pelear con nombres de archivo imposibles.</p>
           </div>
-          <aside class="library-signal" aria-label="Ayuda rápida">
-            <div class="track-glyph" aria-hidden="true">028</div>
-            <p class="signal-title">Radio ID a archivo real</p>
-            <p class="signal-copy">Prueba con <strong>28</strong>, <strong>Track 28</strong>, artista, título o la ruta original del FLAC.</p>
+          <aside class="library-signal" aria-label="Sticker visual de Harmonia Library">
+            <img id="librarySticker" src="/fastfetch/lain.jpg" alt="Sticker aleatorio de la colección fastfetch" />
+            <div class="signal-glow" aria-hidden="true"></div>
+            <button id="shuffleSticker" class="sticker-button" type="button">Cambiar sticker</button>
           </aside>
         </header>
 
@@ -474,6 +510,7 @@
         <div class="track-number"></div>
         <div class="track-body">
           <div class="track-heading">
+            <p class="track-artist"></p>
             <h2 class="track-title"></h2>
             <p class="track-meta"></p>
           </div>
@@ -492,6 +529,8 @@
       const resultCount = document.querySelector('#resultCount');
       const results = document.querySelector('#results');
       const trackTemplate = document.querySelector('#trackTemplate');
+      const librarySticker = document.querySelector('#librarySticker');
+      const shuffleSticker = document.querySelector('#shuffleSticker');
 
       let library = [];
       let visibleTracks = [];
@@ -500,8 +539,44 @@
         return String(value || '').trim().toLocaleLowerCase('es');
       }
 
+      async function setRandomSticker() {
+        try {
+          const response = await fetch('/image-manifest.json', { cache: 'no-cache' });
+          if (!response.ok) throw new Error(`Image manifest HTTP ${response.status}`);
+          const images = await response.json();
+          const image = Array.isArray(images) && images.length ? images[Math.floor(Math.random() * images.length)] : 'lain.jpg';
+          librarySticker.src = `/fastfetch/${encodeURIComponent(image)}`;
+        } catch (error) {
+          librarySticker.src = '/fastfetch/lain.jpg';
+          console.warn('Image manifest unavailable; using fallback library sticker.', error);
+        }
+      }
+
+      function cleanTitle(value) {
+        return String(value || '')
+          .replace(/\.[a-z0-9]{2,5}$/i, '')
+          .replace(/^track\s*0*\d+\s*[-:–—]\s*/i, '')
+          .replace(/^\d+\s*[.-]\s*/, '')
+          .trim();
+      }
+
+      function pickFirst(record, fields) {
+        for (const field of fields) {
+          const value = record[field];
+          if (value !== undefined && value !== null && String(value).trim()) return value;
+        }
+        return '';
+      }
+
       function normalizeTrackNumber(value) {
         const match = normalizeText(value).match(/(?:track\s*)?0*(\d+)/);
+        if (!match) return '';
+        return String(Number(match[1])).padStart(3, '0');
+      }
+
+      function normalizeExplicitTrackNumber(value) {
+        const text = normalizeText(value);
+        const match = text.match(/^track\s*0*(\d+)(?:\s*[-:–—].*)?$/) || text.match(/^0*(\d+)$/);
         if (!match) return '';
         return String(Number(match[1])).padStart(3, '0');
       }
@@ -518,7 +593,106 @@
       }
 
       function displayTitle(item) {
-        return item.displayTitle || [trackLabel(item.track), item.title].filter(Boolean).join(' - ');
+        return item.title || cleanTitle(item.displayTitle) || trackLabel(item.track);
+      }
+
+      function metadataKeysFromValues(values) {
+        const keys = [];
+        values.forEach((value) => {
+          const trackNumber = normalizeExplicitTrackNumber(value);
+          if (trackNumber) keys.push(`track:${trackNumber}`);
+
+          const title = normalizeText(cleanTitle(value));
+          if (title && !/^\d+$/.test(title)) keys.push(`title:${title}`);
+        });
+
+        return [...new Set(keys)];
+      }
+
+      function statsEntries(stats) {
+        const sections = ['recently_played', 'top_tracks', 'tracks'];
+        return sections.flatMap((section) => {
+          const value = stats && stats[section];
+          const entries = Array.isArray(value) ? value : Object.values(value || {});
+          return entries.filter((entry) => entry && typeof entry === 'object').map((entry) => ({ entry, section }));
+        });
+      }
+
+      function listenCountFromEntry(entry, section) {
+        const value = pickFirst(entry, ['listenCount', 'listen_count', 'playCount', 'play_count', 'plays', 'count', 'total']);
+        const count = Number(value);
+        if (Number.isFinite(count) && count > 0) return count;
+        return 0;
+      }
+
+      function metadataFromEntry(entry, section) {
+        const trackValue = pickFirst(entry, ['track', 'trackNumber', 'track_number', 'id', 'path', 'url', 'file']);
+        const titleValue = pickFirst(entry, ['title', 'name']) || (!normalizeTrackNumber(trackValue) ? trackValue : '');
+        return {
+          artist: pickFirst(entry, ['artist', 'albumArtist', 'albumartist', 'album_artist']),
+          title: cleanTitle(titleValue),
+          album: pickFirst(entry, ['album', 'release']),
+          genre: pickFirst(entry, ['genre']),
+          listenCount: listenCountFromEntry(entry, section),
+          keys: metadataKeysFromValues([trackValue, titleValue, entry.path, entry.url, entry.file]),
+        };
+      }
+
+      function mergeMetadata(target, source) {
+        ['artist', 'title', 'album', 'genre'].forEach((field) => {
+          if (!target[field] && source[field]) target[field] = source[field];
+        });
+
+        if (source.listenCount && !target.listenCount) target.listenCount = source.listenCount;
+        return target;
+      }
+
+      function buildStatsMetadata(stats) {
+        const metadataByKey = new Map();
+        statsEntries(stats).forEach(({ entry, section }) => {
+          const metadata = metadataFromEntry(entry, section);
+          if (!metadata.keys.length) return;
+
+          const sharedMetadata = metadata.keys.map((key) => metadataByKey.get(key)).find(Boolean) || {};
+          mergeMetadata(sharedMetadata, metadata);
+          metadata.keys.forEach((key) => metadataByKey.set(key, sharedMetadata));
+        });
+
+        return metadataByKey;
+      }
+
+      function findStatsMetadata(item, metadataByKey) {
+        const keys = metadataKeysFromValues([item.track, item.title, item.displayTitle, item.path, item.url]);
+        const matches = [...new Set(keys.map((key) => metadataByKey.get(key)).filter(Boolean))];
+        return matches.reduce((metadata, match) => mergeMetadata(metadata, match), {});
+      }
+
+      function enrichManifest(manifest, metadataByKey) {
+        if (!metadataByKey.size) return manifest;
+
+        return manifest.map((item) => {
+          const metadata = findStatsMetadata(item, metadataByKey);
+          return {
+            ...item,
+            artist: item.artist || metadata.artist,
+            title: item.title || metadata.title,
+            album: item.album || metadata.album,
+            genre: item.genre || metadata.genre,
+            listenCount: item.listenCount || metadata.listenCount,
+          };
+        });
+      }
+
+      async function fetchStatsMetadata() {
+        try {
+          const response = await fetch('/stats.json', { cache: 'no-store' });
+          if (!response.ok) throw new Error(`Stats HTTP ${response.status}`);
+
+          return buildStatsMetadata(await response.json());
+        } catch (error) {
+          console.warn('Stats metadata unavailable; using manifest-only library.', error);
+          return new Map();
+        }
       }
 
       function searchableFields(item) {
@@ -533,6 +707,9 @@
           item.albumArtist,
           item.albumartist,
           item.title,
+          item.album,
+          item.genre,
+          item.listenCount,
           displayTitle(item),
           item.path,
           item.url,
@@ -575,6 +752,69 @@
         resultCount.textContent = `${shown} de ${total} ${shown === 1 ? 'resultado' : 'resultados'} para "${searchInput.value}".`;
       }
 
+      function playCountThreshold(audio) {
+        if (!Number.isFinite(audio.duration) || audio.duration <= 0) return 5;
+        return Math.min(5, Math.max(1, audio.duration * 0.2));
+      }
+
+      async function recordLibraryPlay(item) {
+        try {
+          const response = await fetch('/library-play', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              track: item.track,
+              artist: item.artist || item.albumArtist || item.albumartist || '',
+              title: displayTitle(item),
+              album: item.album || '',
+              genre: item.genre || '',
+            }),
+            cache: 'no-store',
+            keepalive: true,
+          });
+          if (!response.ok) throw new Error(`Library play HTTP ${response.status}`);
+        } catch (error) {
+          console.warn('Library play was not recorded.', error);
+        }
+      }
+
+      function attachLibraryPlayCounter(audio, item) {
+        let state = { counted: false, lastTime: 0, listenedSeconds: 0 };
+
+        const resetSession = () => {
+          state = { counted: false, lastTime: audio.currentTime || 0, listenedSeconds: 0 };
+        };
+
+        const countOnce = () => {
+          if (state.counted) return;
+          state.counted = true;
+          void recordLibraryPlay(item);
+        };
+
+        audio.addEventListener('play', () => {
+          if (state.counted && audio.currentTime < 1) resetSession();
+          state.lastTime = audio.currentTime || 0;
+        });
+
+        audio.addEventListener('seeked', () => {
+          state.lastTime = audio.currentTime || 0;
+        });
+
+        audio.addEventListener('timeupdate', () => {
+          if (state.counted || audio.paused) return;
+          const currentTime = audio.currentTime || 0;
+          const delta = currentTime - state.lastTime;
+          state.lastTime = currentTime;
+          if (delta > 0 && delta <= 2.5) state.listenedSeconds += delta;
+          if (state.listenedSeconds >= playCountThreshold(audio)) countOnce();
+        });
+
+        audio.addEventListener('ended', () => {
+          countOnce();
+          resetSession();
+        });
+      }
+
       function renderTracks() {
         results.innerHTML = '';
         visibleTracks.forEach((item) => {
@@ -583,21 +823,25 @@
           const label = trackLabel(item.track);
           const artist = item.artist || item.albumArtist || item.albumartist || 'Artista sin metadata';
           const title = displayTitle(item);
+          const metadata = [label, item.album, item.genre, item.listenCount && `${item.listenCount} escuchas`].filter(Boolean).join(' · ');
           const path = item.path || item.url || 'Ruta no disponible';
           const audio = node.querySelector('audio');
           const link = node.querySelector('a');
+          const accessibleTitle = artist === 'Artista sin metadata' ? title : `${title} de ${artist}`;
 
           node.querySelector('.track-number').textContent = normalizedTrack || '???';
+          node.querySelector('.track-artist').textContent = artist;
           node.querySelector('.track-title').textContent = title;
-          node.querySelector('.track-meta').textContent = `${label} · ${artist}`;
+          node.querySelector('.track-meta').textContent = metadata;
           node.querySelector('.track-path').textContent = path;
 
           audio.src = item.url || '';
-          audio.setAttribute('aria-label', `Reproducir ${title}`);
+          audio.setAttribute('aria-label', `Reproducir ${accessibleTitle}`);
+          attachLibraryPlayCounter(audio, item);
 
           link.href = item.url || '#';
           link.download = path.split('/').pop() || '';
-          link.setAttribute('aria-label', `Abrir o descargar ${title}`);
+          link.setAttribute('aria-label', `Abrir o descargar ${accessibleTitle}`);
           if (!item.url) link.setAttribute('aria-disabled', 'true');
 
           results.append(node);
@@ -629,7 +873,8 @@
           const manifest = await response.json();
           if (!Array.isArray(manifest)) throw new Error('Manifest is not an array');
 
-          library = manifest;
+          const statsMetadata = await fetchStatsMetadata();
+          library = enrichManifest(manifest, statsMetadata);
           applySearch();
         } catch (error) {
           library = [];
@@ -646,8 +891,10 @@
         searchInput.focus();
         applySearch();
       });
+      shuffleSticker.addEventListener('click', setRandomSticker);
 
       loadManifest();
+      setRandomSticker();
     </script>
   </body>
 </html>
