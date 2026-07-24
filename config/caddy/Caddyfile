@@ -57,6 +57,18 @@
 
 		respond @libraryHostWithoutAccess 403
 
+		handle_path /fastfetch/* {
+			root * /srv/fastfetch
+			file_server
+		}
+
+		handle /image-manifest.json {
+			header Cache-Control "no-cache, max-age=0"
+			root * /srv/site
+			rewrite * /image-manifest.json
+			file_server
+		}
+
 		handle /manifest.json {
 			header Cache-Control "no-store, max-age=0"
 			root * /srv/state/library
@@ -83,6 +95,10 @@
 			root * /srv/state/scheduler
 			rewrite * /state.json
 			file_server
+		}
+
+		handle /library-play {
+			reverse_proxy library-events:8092
 		}
 
 		handle_path /originals/* {

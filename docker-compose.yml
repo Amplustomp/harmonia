@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     depends_on:
       - icecast
+      - library-events
     ports:
       - "127.0.0.1:8090:8090"
       - "${LIBRARY_BIND:-127.0.0.1}:${LIBRARY_PORT:-8091}:8091"
@@ -14,7 +15,7 @@ services:
       - ./library:/srv/library:ro
       - ./data:/srv/state:ro
       - "${MUSIC_DIR:-/mnt/ssd-data/Music/mp3}:/library:ro"
-      - /mnt/ssd-data/fastfetch/images:/srv/fastfetch:ro
+      - "${FASTFETCH_IMAGES_DIR:-/mnt/ssd-data/fastfetch/images}:/srv/fastfetch:ro"
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -43,6 +44,24 @@ services:
       - .env
     ports:
       - "${ICECAST_BIND:-127.0.0.1}:${ICECAST_PORT:-8000}:8000"
+
+  library-events:
+    image: python:3.13-alpine
+    container_name: harmonia-library-events
+    restart: unless-stopped
+    volumes:
+      - ./src:/app/src:ro
+      - ./data:/state
+    command:
+      - python
+      - -m
+      - harmonia_scheduler.library_events
+      - --manifest
+      - /state/library/manifest.json
+      - --history
+      - /state/played-history.jsonl
+    environment:
+      PYTHONPATH: /app/src
 
   liquidsoap:
     build:

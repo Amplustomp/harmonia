@@ -27,16 +27,19 @@ def build_stats(
     tracks = load_manifest(manifest_path)
     scheduler = Scheduler(tracks, load_state(state_path))
     history = load_played_history(history_path)
+    radio_history = [entry for entry in history if entry.get("source") != "library"]
     tracks_by_id = {track.track: track for track in tracks}
-    playback_cycle = _playback_cycle_stats(history, tracks, scheduler.state["order"], tracks_by_id)
+    metadata_by_track = _track_history_metadata(history)
+    playback_cycle = _playback_cycle_stats(radio_history, tracks, scheduler.state["order"], tracks_by_id)
 
     return {
         "track_count": len(tracks),
+        "tracks": _track_catalog(tracks, metadata_by_track),
         "scheduler": _scheduler_stats(scheduler, tracks_by_id),
         "playback_cycle": playback_cycle,
         "pending_tracks": playback_cycle["pending_tracks"],
         "recently_played": _recently_played(history, tracks_by_id, recent_limit),
-        "top_tracks": _top_tracks(history, tracks_by_id, top_limit),
+        "top_tracks": _top_tracks(history, tracks_by_id, metadata_by_track, top_limit),
         "top_artists": _top_artists(history, top_limit),
     }
 
@@ -93,7 +96,12 @@ def _recently_played(entries: list[dict[str, Any]], tracks_by_id: dict[str, Trac
     return [_history_summary(entry, tracks_by_id) for entry in reversed(entries[-limit:])]
 
 
-def _top_tracks(entries: list[dict[str, Any]], tracks_by_id: dict[str, Track], limit: int) -> list[dict[str, Any]]:
+def _top_tracks(
+    entries: list[dict[str, Any]],
+    tracks_by_id: dict[str, Track],
+    metadata_by_track: dict[str, dict[str, Any]],
+    limit: int,
+) -> list[dict[str, Any]]:
     counts: Counter[str] = Counter()
     for entry in entries:
         track_id = _string_or_empty(entry.get("tracknumber"))
@@ -103,9 +111,39 @@ def _top_tracks(entries: list[dict[str, Any]], tracks_by_id: dict[str, Track], l
     top: list[dict[str, Any]] = []
     for track_id, count in counts.most_common(limit):
         summary = _track_summary(track_id, tracks_by_id)
+        summary.update(metadata_by_track.get(track_id, {}))
         summary["plays"] = count
         top.append(summary)
     return top
+
+
+def _track_catalog(tracks: list[Track], metadata_by_track: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    catalog: list[dict[str, Any]] = []
+    for track in tracks:
+        summary = _track_summary(track.track, {track.track: track})
+        summary.update(metadata_by_track.get(track.track, {}))
+        catalog.append(summary)
+    return catalog
+
+
+def _track_history_metadata(entries: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    metadata_by_track: dict[str, dict[str, Any]] = {}
+    counts: Counter[str] = Counter()
+    for entry in entries:
+        track_id = _string_or_empty(entry.get("tracknumber"))
+        if not track_id:
+            continue
+
+        counts[track_id] += 1
+        metadata = metadata_by_track.setdefault(track_id, {})
+        for source_field, target_field in (("artist", "artist"), ("album", "album"), ("genre", "genre"), ("title", "title")):
+            value = _string_or_empty(entry.get(source_field))
+            if value:
+                metadata[target_field] = value
+
+    for track_id, count in counts.items():
+        metadata_by_track.setdefault(track_id, {})["plays"] = count
+    return metadata_by_track
 
 
 def _top_artists(entries: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:

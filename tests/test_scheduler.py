@@ -12,6 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from harmonia_scheduler.cli import main
+from harmonia_scheduler.library_events import LibraryEventError, append_library_play
 from harmonia_scheduler.scheduler import Scheduler, SchedulerError, annotate, build_library_tracks, load_manifest, simulate
 from harmonia_scheduler.stats import build_stats, load_played_history
 
@@ -389,9 +390,73 @@ class SchedulerTests(unittest.TestCase):
         self.assertEqual(stats["scheduler"]["progress"]["pending"], 1)
         self.assertEqual(len(stats["pending_tracks"]), 1)
         self.assertEqual([item["track"] for item in stats["recently_played"]], [first.track, second.track])
+        catalog_first = next(item for item in stats["tracks"] if item["track"] == first.track)
+        self.assertEqual(catalog_first["artist"], "Artist A")
+        self.assertEqual(catalog_first["album"], "Album A")
+        self.assertEqual(catalog_first["genre"], "Anime")
+        self.assertEqual(catalog_first["plays"], 2)
         self.assertEqual(stats["top_tracks"][0]["track"], first.track)
+        self.assertEqual(stats["top_tracks"][0]["artist"], "Artist A")
         self.assertEqual(stats["top_tracks"][0]["plays"], 2)
         self.assertEqual(stats["top_artists"][0], {"artist": "Artist A", "plays": 2})
+
+    def test_library_play_counts_in_tops_without_advancing_radio_cycle(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            manifest_path = write_manifest(temp_path)
+            state_path = temp_path / "scheduler" / "state.json"
+            history_path = temp_path / "played-history.jsonl"
+            scheduler = Scheduler(load_manifest(manifest_path), seed="library-stats")
+            radio_track = scheduler.next_track()
+            scheduler.next_track()
+            library_track = next(track for track in load_manifest(manifest_path) if track.track != radio_track.track)
+            scheduler.save(state_path)
+            history_path.write_text(
+                json.dumps(
+                    {
+                        "played_at": "2026-01-01T00:00:00+0000",
+                        "played_at_epoch": 1.0,
+                        "artist": "Radio Artist",
+                        "title": radio_track.display_title,
+                        "tracknumber": radio_track.track,
+                        "album": "Radio Album",
+                        "genre": "Radio Genre",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            append_library_play(
+                {"track": library_track.track, "artist": "Library Artist", "album": "Library Album", "genre": "Library Genre"},
+                manifest_path=manifest_path,
+                history_path=history_path,
+            )
+            append_library_play(
+                {"track": library_track.track, "artist": "Library Artist", "album": "Library Album", "genre": "Library Genre"},
+                manifest_path=manifest_path,
+                history_path=history_path,
+            )
+            stats = build_stats(manifest_path, state_path, history_path, recent_limit=5, top_limit=3)
+
+        self.assertEqual(stats["top_tracks"][0]["track"], library_track.track)
+        self.assertEqual(stats["top_tracks"][0]["plays"], 2)
+        self.assertEqual(stats["top_artists"][0], {"artist": "Library Artist", "plays": 2})
+        self.assertEqual(stats["recently_played"][0]["track"], library_track.track)
+        self.assertEqual(stats["recently_played"][0]["artist"], "Library Artist")
+        self.assertEqual(stats["playback_cycle"]["played"], 1)
+        self.assertEqual([item["track"] for item in stats["playback_cycle"]["played_tracks"]], [radio_track.track])
+
+    def test_library_play_rejects_unknown_track(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            manifest_path = write_manifest(temp_path)
+            history_path = temp_path / "played-history.jsonl"
+
+            with self.assertRaisesRegex(LibraryEventError, "unknown track"):
+                append_library_play({"track": "999"}, manifest_path=manifest_path, history_path=history_path)
+
+        self.assertFalse(history_path.exists())
 
     def test_played_history_rejects_malformed_json(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
