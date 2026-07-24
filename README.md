@@ -161,7 +161,7 @@ uv run harmonia-scheduler stats
 uv run harmonia-scheduler stats --output data/stats.json
 ```
 
-The stats include total track count, generated scheduler state, playback-cycle progress inferred from radio entries in `played-history.jsonl`, pending tracks, recent plays, top tracks, and top artists. The Liquidsoap container refreshes `data/stats.json` every `STATS_REFRESH_SECONDS` seconds, defaulting to 60. Caddy exposes `/stats.json`, `/played-history.jsonl`, and `/scheduler-state.json` only on the private `:8091` library surface, behind the same LAN/Cloudflare Access guard as `/manifest.json`. The private library page also records confirmed local plays through `POST /library-play`, so library loops count toward recent/top totals without advancing the radio playback cycle. The public player on `:8090` does not depend on these files.
+The stats include total track count, generated scheduler state, playback-cycle progress inferred from radio entries in `played-history.jsonl`, pending tracks, recent plays, top tracks, and top artists. The Liquidsoap container refreshes `data/stats.json` every `STATS_REFRESH_SECONDS` seconds, defaulting to 60. Private stats and history endpoints are kept behind the operator/library surface and are not required by the public player. The private library page also records confirmed local plays, so library loops count toward recent/top totals without advancing the radio playback cycle.
 
 To pick up newly added albums:
 
@@ -196,71 +196,24 @@ Update the image mount in `docker-compose.yml` if your folder is somewhere else.
 
 ## Publishing behind a tunnel or reverse proxy
 
-This repo binds the public player frontend to localhost by default:
-
-```text
-127.0.0.1:8090
-```
-
-That makes it easy to publish through Cloudflare Tunnel, another Caddy instance, Nginx, Traefik, or whatever reverse-proxy beast you already feed.
-
-Example route:
-
-```text
-radio.example.com -> http://localhost:8090
-```
+This repo binds the public player frontend locally by default. That makes it easy to publish through Cloudflare Tunnel, another Caddy instance, Nginx, Traefik, or whatever reverse-proxy beast you already feed. Keep real hostnames, bind addresses, tunnel IDs, and origin ports in local config rather than in public docs.
 
 ## Private library UI through Cloudflare Access
 
-The library UI is prepared for `library.admethius.quest` behind Cloudflare Tunnel and Cloudflare Access. The intended public route is:
+The operator/library UI is intended to sit behind Cloudflare Tunnel and Cloudflare Access. The README deliberately avoids publishing real hostnames, origin ports, tunnel names, network allowlists, or exact verification URLs. Keep those details in local environment files, Cloudflare configuration, and private runbooks instead of giving internet goblins a laminated treasure map.
 
-```text
-library.admethius.quest -> http://caddy:8091
-```
+The private surface should stay local by default. If you expose it beyond the host, do it intentionally on a trusted network and keep Cloudflare Access as the internet-facing gate. Do not add custom JWT code here; Access already does that job, and duplicating it would be premium-grade yak shaving.
 
-`8091` is the private library surface. Caddy still allows direct requests from localhost, private LAN ranges, Docker bridge networks, and Tailscale CGNAT (`100.64.0.0/10`). Everyone else gets a boring `403`, as they should.
+Cloudflare setup checklist:
 
-Docker port publishing cannot express "LAN-only" generically across hosts. For that reason the default is deliberately local-only:
+1. Use a dedicated tunnel for the private library UI.
+2. Keep tunnel credentials outside git and point `.env` at the local credentials path.
+3. Route the private hostname to the library origin in Cloudflare, not in public docs.
+4. Create a Cloudflare Access self-hosted app for the private hostname.
+5. Add an Access policy that only allows explicit trusted identities.
+6. Keep local bind addresses, origin ports, tunnel IDs, and test URLs out of committed documentation.
 
-```env
-LIBRARY_BIND=127.0.0.1
-LIBRARY_PORT=8091
-```
-
-If you want direct LAN access, opt in on a trusted LAN/firewall:
-
-```env
-LIBRARY_BIND=0.0.0.0
-```
-
-Cloudflare Access remains the internet-facing gate. Do not add custom JWT code here; Access already does that job, and duplicating it would be premium-grade yak shaving.
-
-Tomorrow's Cloudflare setup:
-
-1. Use the dedicated `harmonia-library` tunnel.
-2. Keep its credentials JSON outside git and point `.env` at it with `CLOUDFLARED_CREDENTIALS_FILE=...`.
-3. Route `library.admethius.quest` to the `harmonia-library` tunnel.
-4. Create a Cloudflare Access self-hosted app for `library.admethius.quest`.
-5. Add an Access policy that only allows the explicit trusted email addresses Sergio chooses.
-6. Do not configure JWT custom validation in Harmonia.
-
-Start or restart the stack after adding the token:
-
-```bash
-docker compose --profile tunnel up -d
-docker compose logs -f cloudflared caddy
-```
-
-Verify the local and tunnel paths:
-
-```bash
-curl -I http://127.0.0.1:8091/
-docker compose ps cloudflared
-```
-
-Without the `tunnel` profile, `cloudflared` stays off and the regular radio stack keeps starting normally.
-
-Then open `https://library.admethius.quest` from outside the LAN and confirm Cloudflare Access asks for an allowed email before showing the library UI. Also confirm a non-allowed email is rejected, because otherwise the gate is cosplay.
+Start or restart the stack with the tunnel profile after local configuration is in place, then verify from an external network that Cloudflare Access challenges unauthenticated users and rejects non-allowed identities. Without the `tunnel` profile, the tunnel stays off and the regular radio stack keeps starting normally.
 
 ## Repository hygiene
 
