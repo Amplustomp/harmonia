@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Harmonia · Admethius Radio</title>
     <meta name="description" content="Harmonia: radio self-hosted de Admethius, servida desde el homelab." />
-    <link rel="stylesheet" href="styles.css?v=sticker-volume-2" />
+    <link rel="stylesheet" href="styles.css?v=radio-controls-listeners-3" />
   </head>
   <body>
     <main class="shell">
@@ -25,25 +25,53 @@
             <source src="/aac" type="audio/aac" />
           </audio>
 
-          <div class="controls">
+          <div class="controls" aria-label="Controles de radio en vivo">
             <button id="playButton" class="play-button" type="button" aria-label="Reproducir Harmonia">
               <span id="playIcon" aria-hidden="true"></span>
             </button>
-            <div>
-              <p id="status" class="status">Lista para transmitir</p>
-              <p id="nowPlayingTitle" class="hint">Cargando metadata...</p>
+            <div class="status-stack">
+              <span class="live-badge">En vivo</span>
+              <p id="status" class="status" aria-live="polite">Lista para transmitir</p>
+            </div>
+            <div class="volume-control">
+              <button id="volumeToggle" class="volume-toggle" type="button" aria-label="Abrir control de volumen" aria-expanded="false" aria-controls="volumePanel">
+                <span class="volume-icon" aria-hidden="true"></span>
+              </button>
+              <div id="volumePanel" class="volume-panel" aria-label="Control de volumen" role="group">
+                <label class="sr-only" for="volumeSlider">Volumen</label>
+                <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="0.8" aria-describedby="volumeValue" aria-orientation="vertical" />
+                <span id="volumeValue" aria-live="polite">80%</span>
+              </div>
             </div>
           </div>
 
-          <div class="volume-control">
-            <label for="volumeSlider">Volumen</label>
-            <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="0.8" aria-describedby="volumeValue" />
-            <span id="volumeValue" aria-live="polite">80%</span>
-          </div>
+          <section class="radio-info" aria-label="Información pública de la radio">
+            <article class="radio-info-card radio-info-card-current">
+              <span class="radio-info-label">Ahora</span>
+              <p id="radioInfoCurrent" class="radio-info-title">Afinando antena...</p>
+              <p id="radioInfoCurrentMeta" class="radio-info-meta">Metadata pública en camino</p>
+            </article>
+            <article class="radio-info-card">
+              <span class="radio-info-label">Anterior</span>
+              <p id="radioInfoPrevious" class="radio-info-title">Sin historial aún</p>
+              <p id="radioInfoPreviousMeta" class="radio-info-meta">Esperando historial público</p>
+            </article>
+            <article class="radio-info-card">
+              <span class="radio-info-label">Posible siguiente</span>
+              <p id="radioInfoUpcoming" class="radio-info-title">Candidato por calcular</p>
+              <p id="radioInfoUpcomingMeta" class="radio-info-meta">No es promesa, es candidato</p>
+            </article>
+          </section>
+          <aside class="listener-badge" aria-label="Personas conectadas a la radio">
+            <img class="listener-badge-icon" src="/listener-badge.png" alt="" aria-hidden="true" />
+            <span class="sr-only">Oyentes conectados: </span>
+            <span id="listenerCount" class="listener-count">?</span>
+            <span id="listenerLabel" class="listener-label">oyentes</span>
+          </aside>
         </section>
       </section>
     </main>
 
-    <script src="app.js?v=sticker-volume-2" type="module"></script>
+    <script src="app.js?v=listeners-1" type="module"></script>
   </body>
 </html>

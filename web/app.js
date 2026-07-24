@@ -1,12 +1,21 @@
 const player = document.querySelector('#player');
 const playButton = document.querySelector('#playButton');
 const statusText = document.querySelector('#status');
-const nowPlayingTitle = document.querySelector('#nowPlayingTitle');
 const sticker = document.querySelector('#sticker');
 const shuffleSticker = document.querySelector('#shuffleSticker');
 const volumeSlider = document.querySelector('#volumeSlider');
 const volumeValue = document.querySelector('#volumeValue');
+const volumeControl = document.querySelector('.volume-control');
+const volumeToggle = document.querySelector('#volumeToggle');
 const playerPanel = document.querySelector('.player-panel');
+const radioInfoCurrent = document.querySelector('#radioInfoCurrent');
+const radioInfoCurrentMeta = document.querySelector('#radioInfoCurrentMeta');
+const radioInfoPrevious = document.querySelector('#radioInfoPrevious');
+const radioInfoPreviousMeta = document.querySelector('#radioInfoPreviousMeta');
+const radioInfoUpcoming = document.querySelector('#radioInfoUpcoming');
+const radioInfoUpcomingMeta = document.querySelector('#radioInfoUpcomingMeta');
+const listenerCount = document.querySelector('#listenerCount');
+const listenerLabel = document.querySelector('#listenerLabel');
 
 const currentStream = '/aac';
 const debugMode = new URLSearchParams(location.search).get('debug') === '1';
@@ -17,6 +26,10 @@ let userWantsPlayback = false;
 let reconnectTimer;
 let debugState;
 let debugList;
+let liveCurrentTrack = null;
+let hasLiveCurrentTrack = false;
+let volumePanelPinned = false;
+let volumePanelSuppressFocus = false;
 
 const audioErrorMessages = {
   1: 'MEDIA_ERR_ABORTED',
@@ -155,34 +168,143 @@ function setPlayerVolume(value) {
   volumeSlider.setAttribute('aria-valuetext', formatVolume(value));
 }
 
+function isVolumePanelVisible() {
+  return volumePanelPinned || (volumeControl.matches(':focus-within') && !volumeControl.classList.contains('is-dismissed'));
+}
+
+function syncVolumePanelState() {
+  const isVisible = isVolumePanelVisible();
+  volumeToggle.setAttribute('aria-expanded', String(isVisible));
+  volumeToggle.setAttribute('aria-label', isVisible ? 'Cerrar control de volumen' : 'Abrir control de volumen');
+}
+
+function setVolumePanelPinned(isPinned) {
+  volumePanelPinned = isPinned;
+  volumeControl.classList.toggle('is-open', volumePanelPinned);
+  if (volumePanelPinned) volumeControl.classList.remove('is-dismissed');
+  syncVolumePanelState();
+}
+
 function setStatus(text) {
   statusText.textContent = text;
 }
 
-function cleanTrackName(value) {
-  if (!value) return '';
-  const withoutPath = String(value).split('/').pop();
-  return decodeURIComponent(withoutPath).replace(/\.[a-z0-9]+$/i, '').replaceAll('_', ' ');
+function cleanPublicValue(value) {
+  if (value === null || value === undefined) return '';
+  return String(value).trim();
 }
 
-function formatMetadata(metadata) {
-  const artist = metadata.artist || metadata.album_artist || metadata.albumartist || '';
-  const title = metadata.title || cleanTrackName(metadata.filename || metadata.initial_uri || metadata.source || '');
+function normalizePublicTrack(track) {
+  if (!track || typeof track !== 'object') return null;
 
-  if (artist && title) return `${artist} — ${title}`;
-  if (title) return title;
-  return 'Harmonia está sonando, pero el track vino sin carnet.';
+  const normalized = {
+    track: cleanPublicValue(track.track || track.tracknumber || track.radio_track),
+    title: cleanPublicValue(track.title),
+    displayTitle: cleanPublicValue(track.displayTitle || track.display_title),
+    artist: cleanPublicValue(track.artist),
+    album: cleanPublicValue(track.album),
+  };
+
+  return Object.values(normalized).some(Boolean) ? normalized : null;
+}
+
+function getTrackKey(track) {
+  const normalized = normalizePublicTrack(track);
+  if (!normalized) return '';
+  if (normalized.track) return `track:${normalized.track}`;
+
+  return [normalized.displayTitle, normalized.title, normalized.artist, normalized.album]
+    .filter(Boolean)
+    .join('|')
+    .toLocaleLowerCase('es-CL');
+}
+
+function formatPublicTrack(track) {
+  const normalized = normalizePublicTrack(track);
+  if (!normalized) return '';
+  return normalized.displayTitle || normalized.title || (normalized.track ? `Track ${normalized.track}` : 'Sin metadata pública');
+}
+
+function formatPublicMeta(track) {
+  const normalized = normalizePublicTrack(track);
+  if (!normalized) return '';
+  const details = [normalized.artist, normalized.album].filter(Boolean);
+  return details.length ? details.join(' · ') : 'Harmonia está transmitiendo sin ficha completa';
+}
+
+function renderCurrentTrack(track) {
+  radioInfoCurrent.textContent = formatPublicTrack(track) || 'Esperando señal pública...';
+  radioInfoCurrentMeta.textContent = formatPublicMeta(track) || 'Metadata pública en camino';
+}
+
+function renderPreviousTrack(track) {
+  radioInfoPrevious.textContent = formatPublicTrack(track) || 'Sin historial público aún';
+  radioInfoPreviousMeta.textContent = track ? formatPublicMeta(track) : 'Esperando historial público';
+}
+
+function renderUpcomingTrack(track) {
+  radioInfoUpcoming.textContent = formatPublicTrack(track) || 'Candidato por calcular';
+  radioInfoUpcomingMeta.textContent = track ? formatPublicMeta(track) : 'No es promesa, es candidato';
+}
+
+function renderListenerCount(listeners) {
+  const count = Number(listeners && listeners.current);
+  if (!Number.isInteger(count) || count < 0) {
+    listenerCount.textContent = '?';
+    listenerLabel.textContent = 'oyentes';
+    return;
+  }
+
+  listenerCount.textContent = String(count);
+  listenerLabel.textContent = count === 1 ? 'oyente' : 'oyentes';
+}
+
+function seedRadioInfo(info) {
+  const current = normalizePublicTrack(info && info.current);
+  const previous = normalizePublicTrack(info && info.previous);
+  const upcoming = normalizePublicTrack(info && info.upcoming);
+  renderListenerCount(info && info.listeners);
+
+  if (previous) {
+    renderPreviousTrack(previous);
+  }
+
+  if (upcoming) {
+    renderUpcomingTrack(upcoming);
+  }
+
+  if (current && !hasLiveCurrentTrack) {
+    renderCurrentTrack(current);
+  }
+}
+
+async function updateRadioInfo() {
+  try {
+    const response = await fetch('/radio-info.json', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`radio info HTTP ${response.status}`);
+    seedRadioInfo(await response.json());
+  } catch (error) {
+    console.warn('Public radio info unavailable.', error);
+  }
 }
 
 async function updateNowPlaying() {
   try {
     const response = await fetch('/now-playing.json', { cache: 'no-store' });
-    if (!response.ok) throw new Error('metadata not ready');
-    const metadata = await response.json();
-    nowPlayingTitle.textContent = formatMetadata(metadata);
+    if (!response.ok) throw new Error(`now playing HTTP ${response.status}`);
+
+    const nextCurrentTrack = normalizePublicTrack(await response.json());
+    if (!nextCurrentTrack) return;
+
+    if (hasLiveCurrentTrack && getTrackKey(nextCurrentTrack) !== getTrackKey(liveCurrentTrack)) {
+      renderPreviousTrack(liveCurrentTrack);
+    }
+
+    liveCurrentTrack = nextCurrentTrack;
+    hasLiveCurrentTrack = true;
+    renderCurrentTrack(liveCurrentTrack);
   } catch (error) {
-    nowPlayingTitle.textContent = 'Esperando metadata del stream...';
-    console.warn('Now-playing metadata unavailable.', error);
+    console.warn('Live now-playing metadata unavailable.', error);
   }
 }
 
@@ -233,7 +355,44 @@ function scheduleReconnect(reason = 'audio event') {
 
 playButton.addEventListener('click', togglePlayback);
 shuffleSticker.addEventListener('click', setRandomSticker);
+volumeToggle.addEventListener('click', () => {
+  if (volumePanelPinned) {
+    volumeControl.classList.add('is-dismissed');
+    setVolumePanelPinned(false);
+    return;
+  }
+
+  setVolumePanelPinned(true);
+});
+
+volumeControl.addEventListener('focusin', () => {
+  if (!volumePanelSuppressFocus) volumeControl.classList.remove('is-dismissed');
+  syncVolumePanelState();
+});
+
+volumeControl.addEventListener('focusout', () => {
+  setTimeout(() => {
+    if (!volumeControl.matches(':focus-within')) volumeControl.classList.remove('is-dismissed');
+    syncVolumePanelState();
+  });
+});
+
 volumeSlider.addEventListener('input', () => setPlayerVolume(volumeSlider.value));
+
+document.addEventListener('click', (event) => {
+  if (volumeControl.contains(event.target)) return;
+  setVolumePanelPinned(false);
+  volumeControl.classList.remove('is-dismissed');
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || !isVolumePanelVisible()) return;
+  volumePanelSuppressFocus = true;
+  volumeControl.classList.add('is-dismissed');
+  setVolumePanelPinned(false);
+  volumeToggle.focus();
+  setTimeout(() => { volumePanelSuppressFocus = false; });
+});
 
 if (debugMode) {
   ['loadstart', 'play', 'pause', 'waiting', 'stalled', 'error', 'ended', 'playing', 'canplay', 'canplaythrough', 'suspend', 'abort', 'emptied'].forEach((eventName) => {
@@ -254,6 +413,8 @@ player.addEventListener('playing', () => {
 
 setupDebugPanel();
 setPlayerVolume(volumeSlider.value);
+updateRadioInfo();
 updateNowPlaying();
 setRandomSticker();
 setInterval(updateNowPlaying, 15000);
+setInterval(updateRadioInfo, 15000);
