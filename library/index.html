@@ -314,6 +314,189 @@
         margin: 0;
       }
 
+      .stats-dashboard {
+        display: grid;
+        gap: var(--space-4);
+        padding: var(--space-5) clamp(var(--space-5), 5vw, 58px);
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        background:
+          radial-gradient(circle at 12% 18%, rgba(var(--cyan-rgb), 0.12), transparent 16rem),
+          linear-gradient(135deg, rgba(var(--deepest-rgb), 0.34), rgba(var(--ink-rgb), 0.07));
+      }
+
+      .dashboard-header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2) var(--space-4);
+        align-items: end;
+        justify-content: space-between;
+      }
+
+      .dashboard-title-group {
+        display: grid;
+        gap: var(--space-1);
+      }
+
+      .dashboard-kicker,
+      .dashboard-message,
+      .metric-label,
+      .metric-note,
+      .dashboard-empty,
+      .row-eyebrow,
+      .row-meta {
+        margin: 0;
+      }
+
+      .dashboard-kicker,
+      .metric-label,
+      .row-eyebrow {
+        color: var(--cyan);
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .dashboard-title {
+        margin: 0;
+        color: var(--cream);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(24px, 3vw, 38px);
+        line-height: 0.98;
+        letter-spacing: -0.045em;
+      }
+
+      .dashboard-message,
+      .metric-note,
+      .dashboard-empty,
+      .row-meta {
+        color: var(--muted);
+        line-height: 1.35;
+      }
+
+      .metrics-grid,
+      .dashboard-lists {
+        display: grid;
+        gap: var(--space-3);
+      }
+
+      .metrics-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      }
+
+      .dashboard-lists {
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      }
+
+      .metric-card,
+      .dashboard-list-card,
+      .dashboard-state {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-panel);
+        background:
+          linear-gradient(135deg, rgba(var(--ink-rgb), 0.09), transparent 48%),
+          rgba(var(--panel-rgb), 0.54);
+        box-shadow: var(--shadow-soft);
+      }
+
+      .metric-card,
+      .dashboard-state {
+        display: grid;
+        gap: var(--space-2);
+        padding: var(--space-4);
+      }
+
+      .metric-value {
+        color: var(--cream);
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: clamp(26px, 4vw, 42px);
+        font-weight: 900;
+        line-height: 0.95;
+        letter-spacing: -0.055em;
+      }
+
+      .cycle-progress {
+        overflow: hidden;
+        height: var(--space-1);
+        border: 1px solid rgba(var(--ink-rgb), 0.2);
+        border-radius: var(--radius-pill);
+        background: rgba(var(--deepest-rgb), 0.58);
+      }
+
+      .cycle-progress-bar {
+        width: 0%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--cyan), var(--cream));
+        box-shadow: 0 0 var(--space-4) rgba(var(--cyan-rgb), 0.44);
+      }
+
+      .dashboard-list-card {
+        overflow: hidden;
+        min-width: 0;
+      }
+
+      .dashboard-list-title {
+        margin: 0;
+        padding: var(--space-3) var(--space-4);
+        border-bottom: 1px solid var(--line);
+        color: var(--cream);
+        font-size: 15px;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .dashboard-list {
+        display: grid;
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-3) var(--space-4) var(--space-4);
+        list-style: none;
+      }
+
+      .dashboard-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: var(--space-3);
+        align-items: center;
+        min-width: 0;
+      }
+
+      .row-main {
+        display: grid;
+        gap: var(--space-1);
+        min-width: 0;
+      }
+
+      .row-title,
+      .row-value {
+        color: var(--ink);
+        font-weight: 850;
+      }
+
+      .row-title,
+      .row-meta {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .row-value {
+        border: 1px solid rgba(var(--cream-rgb), 0.28);
+        border-radius: var(--radius-pill);
+        padding: var(--space-1) var(--space-2);
+        color: var(--button-ink);
+        background: linear-gradient(135deg, rgba(var(--cyan-rgb), 0.94), rgba(var(--cream-rgb), 0.92));
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .dashboard-empty {
+        padding: var(--space-2) 0;
+      }
+
       .results {
         display: grid;
         gap: var(--space-4);
@@ -455,9 +638,14 @@
 
         .hero,
         .search-panel,
+        .stats-dashboard,
         .results {
           padding-left: var(--space-4);
           padding-right: var(--space-4);
+        }
+
+        .dashboard-row {
+          grid-template-columns: 1fr;
         }
 
         .track-card {
@@ -486,6 +674,13 @@
             <button id="shuffleSticker" class="sticker-button" type="button">Cambiar sticker</button>
           </aside>
         </header>
+
+        <section id="statsDashboard" class="stats-dashboard" aria-label="Dashboard operador de biblioteca" aria-live="polite">
+          <div class="dashboard-state">
+            <p class="dashboard-kicker">operator dashboard</p>
+            <p class="dashboard-message">Cargando /stats.json...</p>
+          </div>
+        </section>
 
         <section class="search-panel" aria-label="Búsqueda de biblioteca">
           <div class="search-row">
@@ -527,13 +722,18 @@
       const searchInput = document.querySelector('#searchInput');
       const clearButton = document.querySelector('#clearButton');
       const resultCount = document.querySelector('#resultCount');
+      const statsDashboard = document.querySelector('#statsDashboard');
       const results = document.querySelector('#results');
       const trackTemplate = document.querySelector('#trackTemplate');
       const librarySticker = document.querySelector('#librarySticker');
       const shuffleSticker = document.querySelector('#shuffleSticker');
 
+      const numberFormatter = new Intl.NumberFormat('es-CL');
+      const STATS_REFRESH_INTERVAL_MS = 15000;
+
       let library = [];
       let visibleTracks = [];
+      let statsRefreshInFlight = false;
 
       function normalizeText(value) {
         return String(value || '').trim().toLocaleLowerCase('es');
@@ -688,11 +888,232 @@
           const response = await fetch('/stats.json', { cache: 'no-store' });
           if (!response.ok) throw new Error(`Stats HTTP ${response.status}`);
 
-          return buildStatsMetadata(await response.json());
+          const stats = await response.json();
+          return { stats, metadataByKey: buildStatsMetadata(stats), unavailable: false };
         } catch (error) {
           console.warn('Stats metadata unavailable; using manifest-only library.', error);
-          return new Map();
+          return { stats: null, metadataByKey: new Map(), unavailable: true };
         }
+      }
+
+      function formatNumber(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return '0';
+        return numberFormatter.format(number);
+      }
+
+      function finiteNumber(value, fallback = 0) {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : fallback;
+      }
+
+      function limitedStatsEntries(value, keyField, limit = 5) {
+        const entries = Array.isArray(value)
+          ? value
+          : Object.entries(value || {}).map(([key, entry]) => {
+              if (entry && typeof entry === 'object') {
+                const normalized = { ...entry };
+                if (!pickFirst(normalized, [keyField, 'track', 'title', 'artist', 'name', 'label'])) normalized[keyField] = key;
+                return normalized;
+              }
+
+              return { [keyField]: key, count: entry };
+            });
+
+        return entries
+          .filter((entry) => entry !== undefined && entry !== null && String(entry).trim() !== '')
+          .slice(0, limit)
+          .map((entry) => (entry && typeof entry === 'object' ? entry : { [keyField]: entry }));
+      }
+
+      function dashboardTrackValue(entry) {
+        return pickFirst(entry, ['track', 'trackNumber', 'track_number', 'label', 'id', 'path', 'url', 'file', 'name']);
+      }
+
+      function dashboardTrackLabel(entry) {
+        const label = trackLabel(dashboardTrackValue(entry));
+        return label === 'Track ???' ? pickFirst(entry, ['label', 'track', 'name']) || label : label;
+      }
+
+      function dashboardTrackTitle(entry) {
+        return cleanTitle(pickFirst(entry, ['title', 'displayTitle', 'name', 'file', 'path'])) || dashboardTrackLabel(entry);
+      }
+
+      function dashboardArtist(entry) {
+        return pickFirst(entry, ['artist', 'albumArtist', 'albumartist', 'album_artist', 'name']) || 'Artista sin metadata';
+      }
+
+      function dashboardSource(entry) {
+        return pickFirst(entry, ['source', 'sourceName', 'source_name', 'origin', 'provider']);
+      }
+
+      function dashboardCount(entry) {
+        return listenCountFromEntry(entry, 'dashboard');
+      }
+
+      function dashboardTrackCatalog(stats) {
+        const catalog = new Map();
+        limitedStatsEntries(stats && stats.tracks, 'track', Number.POSITIVE_INFINITY).forEach((entry) => {
+          const track = normalizeTrackNumber(entry.track);
+          if (track) catalog.set(track, entry);
+        });
+        return catalog;
+      }
+
+      function enrichDashboardTrack(entry, catalog) {
+        const track = normalizeTrackNumber(dashboardTrackValue(entry));
+        const catalogEntry = track ? catalog.get(track) : null;
+        return catalogEntry ? { ...catalogEntry, ...entry } : entry;
+      }
+
+      function createTextElement(tagName, className, text) {
+        const element = document.createElement(tagName);
+        if (className) element.className = className;
+        element.textContent = text;
+        return element;
+      }
+
+      function replaceDashboardChildren(...children) {
+        statsDashboard.textContent = '';
+        children.forEach((child) => statsDashboard.append(child));
+      }
+
+      function createMetricCard(label, value, note) {
+        const card = document.createElement('article');
+        card.className = 'metric-card';
+        card.append(
+          createTextElement('p', 'metric-label', label),
+          createTextElement('strong', 'metric-value', value),
+          createTextElement('p', 'metric-note', note)
+        );
+        return card;
+      }
+
+      function createCycleMetricCard(cycle, totalTracks) {
+        const total = finiteNumber(cycle.total, totalTracks);
+        const played = finiteNumber(cycle.played, 0);
+        const pending = finiteNumber(cycle.pending, Math.max(total - played, 0));
+        const calculatedPercent = total > 0 ? (played / total) * 100 : 0;
+        const percent = Math.min(100, Math.max(0, finiteNumber(cycle.percent, calculatedPercent)));
+        const card = createMetricCard('cycle progress', `${Math.round(percent)}%`, `${formatNumber(played)} played · ${formatNumber(pending)} pending · ${formatNumber(total)} total`);
+        const progress = document.createElement('div');
+        const bar = document.createElement('div');
+        progress.className = 'cycle-progress';
+        bar.className = 'cycle-progress-bar';
+        bar.style.width = `${percent}%`;
+        progress.append(bar);
+        card.append(progress);
+        return card;
+      }
+
+      function createDashboardRow({ eyebrow, title, meta, value }) {
+        const row = document.createElement('li');
+        const main = document.createElement('span');
+        row.className = 'dashboard-row';
+        main.className = 'row-main';
+
+        if (eyebrow) main.append(createTextElement('span', 'row-eyebrow', eyebrow));
+        main.append(createTextElement('span', 'row-title', title));
+        if (meta) main.append(createTextElement('span', 'row-meta', meta));
+        row.append(main);
+        if (value) row.append(createTextElement('span', 'row-value', value));
+        return row;
+      }
+
+      function createDashboardList(title, items, rowBuilder, emptyMessage) {
+        const card = document.createElement('article');
+        const list = document.createElement('ol');
+        card.className = 'dashboard-list-card';
+        list.className = 'dashboard-list';
+        card.append(createTextElement('h3', 'dashboard-list-title', title), list);
+
+        if (!items.length) {
+          const empty = document.createElement('li');
+          empty.className = 'dashboard-empty';
+          empty.textContent = emptyMessage;
+          list.append(empty);
+          return card;
+        }
+
+        items.forEach((entry) => list.append(rowBuilder(entry)));
+        return card;
+      }
+
+      function renderStatsUnavailable() {
+        const state = document.createElement('div');
+        state.className = 'dashboard-state';
+        state.append(
+          createTextElement('p', 'dashboard-kicker', 'operator dashboard'),
+          createTextElement('h2', 'dashboard-title', 'Stats no disponibles'),
+          createTextElement('p', 'dashboard-message', 'No pude leer /stats.json; la búsqueda sigue funcionando con /manifest.json.')
+        );
+        replaceDashboardChildren(state);
+      }
+
+      function renderStatsDashboard(stats, manifestLibrary) {
+        if (!stats || typeof stats !== 'object') {
+          renderStatsUnavailable();
+          return;
+        }
+
+        const cycle = stats.playback_cycle || {};
+        const totalTracks = finiteNumber(stats.track_count, manifestLibrary.length);
+        const recentPlays = limitedStatsEntries(stats.recently_played, 'track');
+        const topTracks = limitedStatsEntries(stats.top_tracks, 'track');
+        const topArtists = limitedStatsEntries(stats.top_artists, 'artist');
+        const catalog = dashboardTrackCatalog(stats);
+        const pendingTracks = limitedStatsEntries(stats.pending_tracks || cycle.pending_tracks, 'track')
+          .map((entry) => enrichDashboardTrack(entry, catalog));
+        const header = document.createElement('header');
+        const titleGroup = document.createElement('div');
+        const metrics = document.createElement('div');
+        const lists = document.createElement('div');
+
+        header.className = 'dashboard-header';
+        titleGroup.className = 'dashboard-title-group';
+        titleGroup.append(
+          createTextElement('p', 'dashboard-kicker', 'operator dashboard'),
+          createTextElement('h2', 'dashboard-title', 'Private library pulse')
+        );
+        header.append(
+          titleGroup,
+          createTextElement('p', 'dashboard-message', `${formatNumber(totalTracks)} tracks locales · ${formatNumber(recentPlays.length)} recientes visibles`)
+        );
+
+        metrics.className = 'metrics-grid';
+        metrics.append(
+          createMetricCard('total tracks', formatNumber(totalTracks), stats.track_count ? 'reportado por /stats.json' : 'fallback desde manifest'),
+          createCycleMetricCard(cycle, totalTracks)
+        );
+
+        lists.className = 'dashboard-lists';
+        lists.append(
+          createDashboardList('recent plays', recentPlays, (entry) => {
+            const source = dashboardSource(entry);
+            return createDashboardRow({
+              eyebrow: dashboardTrackLabel(entry),
+              title: dashboardTrackTitle(entry),
+              meta: [dashboardArtist(entry), source].filter(Boolean).join(' · '),
+            });
+          }, 'Todavía no hay escuchas recientes.'),
+          createDashboardList('top tracks', topTracks, (entry) => createDashboardRow({
+            eyebrow: dashboardTrackLabel(entry),
+            title: dashboardTrackTitle(entry),
+            meta: dashboardArtist(entry),
+            value: `${formatNumber(dashboardCount(entry))} plays`,
+          }), 'No hay ranking de tracks todavía.'),
+          createDashboardList('top artists', topArtists, (entry) => createDashboardRow({
+            title: dashboardArtist(entry),
+            value: `${formatNumber(dashboardCount(entry))} plays`,
+          }), 'No hay artistas top todavía.'),
+          createDashboardList('pending tracks', pendingTracks, (entry) => createDashboardRow({
+            eyebrow: dashboardTrackLabel(entry),
+            title: dashboardTrackTitle(entry),
+            meta: dashboardArtist(entry),
+          }), 'Ciclo limpio: no quedan tracks pendientes.')
+        );
+
+        replaceDashboardChildren(header, metrics, lists);
       }
 
       function searchableFields(item) {
@@ -865,6 +1286,18 @@
         renderTracks();
       }
 
+      async function refreshStatsDashboard() {
+        if (statsRefreshInFlight) return;
+
+        statsRefreshInFlight = true;
+        try {
+          const statsPayload = await fetchStatsMetadata();
+          renderStatsDashboard(statsPayload.stats, library);
+        } finally {
+          statsRefreshInFlight = false;
+        }
+      }
+
       async function loadManifest() {
         try {
           const response = await fetch('/manifest.json', { cache: 'no-store' });
@@ -873,13 +1306,15 @@
           const manifest = await response.json();
           if (!Array.isArray(manifest)) throw new Error('Manifest is not an array');
 
-          const statsMetadata = await fetchStatsMetadata();
-          library = enrichManifest(manifest, statsMetadata);
+          const statsPayload = await fetchStatsMetadata();
+          library = enrichManifest(manifest, statsPayload.metadataByKey);
+          renderStatsDashboard(statsPayload.stats, library);
           applySearch();
         } catch (error) {
           library = [];
           visibleTracks = [];
           resultCount.textContent = 'No pude cargar /manifest.json.';
+          renderStatsUnavailable();
           setState('Manifest no disponible', 'Esta página no asume build ni archivo local previo. Cuando Caddy sirva /manifest.json, la biblioteca aparece aquí.');
           console.error(error);
         }
@@ -893,7 +1328,9 @@
       });
       shuffleSticker.addEventListener('click', setRandomSticker);
 
-      loadManifest();
+      loadManifest().then(() => {
+        setInterval(refreshStatsDashboard, STATS_REFRESH_INTERVAL_MS);
+      });
       setRandomSticker();
     </script>
   </body>
