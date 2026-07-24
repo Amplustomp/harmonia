@@ -4,7 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from .stats import DEFAULT_HISTORY_PATH, build_stats, format_stats, write_stats
+from .stats import DEFAULT_HISTORY_PATH, DEFAULT_NOW_PLAYING_PATH, build_public_info, build_stats, format_stats, write_public_info, write_stats
 
 from .scheduler import (
     DEFAULT_MANIFEST_PATH,
@@ -28,6 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST_PATH, help="manifest JSON path")
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE_PATH, help="scheduler state JSON path")
     parser.add_argument("--history", type=Path, default=DEFAULT_HISTORY_PATH, help="played history JSONL path")
+    parser.add_argument("--now-playing", type=Path, default=DEFAULT_NOW_PLAYING_PATH, help="now-playing JSON path")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -58,6 +59,10 @@ def build_parser() -> argparse.ArgumentParser:
     stats_parser.add_argument("--output", type=Path, help="stats JSON output path; stdout is used when omitted")
     stats_parser.add_argument("--recent-limit", type=int, default=10, help="number of recent plays to include")
     stats_parser.add_argument("--top-limit", type=int, default=10, help="number of top tracks and artists to include")
+
+    public_info_parser = subparsers.add_parser("public-info", help="print sanitized public radio info as JSON")
+    public_info_parser.add_argument("--output", type=Path, help="public radio info JSON output path; stdout is used when omitted")
+    public_info_parser.add_argument("--icecast-status-url", help="Icecast status-json.xsl URL used to include sanitized listener counts")
 
     return parser
 
@@ -124,6 +129,21 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 write_stats(args.output, stats)
                 print(f"wrote scheduler stats: {args.output}")
+            return 0
+
+        if args.command == "public-info":
+            info = build_public_info(
+                manifest_path=args.manifest,
+                state_path=args.state,
+                history_path=args.history,
+                now_playing_path=args.now_playing,
+                icecast_status_url=args.icecast_status_url,
+            )
+            if args.output is None:
+                print(format_stats(info), end="")
+            else:
+                write_public_info(args.output, info)
+                print(f"wrote public radio info: {args.output}")
             return 0
     except SchedulerError as exc:
         print(f"harmonia-scheduler: {exc}", file=sys.stderr)

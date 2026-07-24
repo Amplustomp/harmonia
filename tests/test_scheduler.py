@@ -14,7 +14,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from harmonia_scheduler.cli import main
 from harmonia_scheduler.library_events import LibraryEventError, append_library_play
 from harmonia_scheduler.scheduler import Scheduler, SchedulerError, annotate, build_library_tracks, load_manifest, simulate
-from harmonia_scheduler.stats import build_stats, load_played_history
+from harmonia_scheduler.stats import _listener_count_from_icecast_status, build_public_info, build_stats, load_played_history
 
 
 MANIFEST_ITEMS = [
@@ -446,6 +446,141 @@ class SchedulerTests(unittest.TestCase):
         self.assertEqual(stats["recently_played"][0]["artist"], "Library Artist")
         self.assertEqual(stats["playback_cycle"]["played"], 1)
         self.assertEqual([item["track"] for item in stats["playback_cycle"]["played_tracks"]], [radio_track.track])
+
+    def test_build_public_info_excludes_private_fields_and_current_from_previous(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            manifest_path = write_manifest(temp_path)
+            state_path = temp_path / "scheduler" / "state.json"
+            history_path = temp_path / "played-history.jsonl"
+            now_playing_path = temp_path / "now-playing.json"
+            scheduler = Scheduler(load_manifest(manifest_path), seed="public-info")
+            first = scheduler.next_track()
+            second = scheduler.next_track()
+            scheduler.save(state_path)
+            history_path.write_text(
+                "\n".join(
+                    [
+                        json.dumps(
+                            {
+                                "played_at": "2026-01-01T00:00:00+0000",
+                                "played_at_epoch": 1.0,
+                                "artist": "Previous Artist",
+                                "title": first.display_title,
+                                "tracknumber": first.track,
+                                "album": "Previous Album",
+                                "genre": "Radio Genre",
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "played_at": "2026-01-01T00:03:00+0000",
+                                "played_at_epoch": 2.0,
+                                "artist": "Current Artist",
+                                "title": second.display_title,
+                                "tracknumber": second.track,
+                                "album": "Current Album",
+                                "genre": "Radio Genre",
+                            }
+                        ),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            now_playing_path.write_text(
+                json.dumps(
+                    {
+                        "tracknumber": second.track,
+                        "title": second.display_title,
+                        "artist": "Current Artist",
+                        "album": "Current Album",
+                        "filename": "/music/private.flac",
+                        "initial_uri": "annotate:secret:/music/private.flac",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            info = build_public_info(manifest_path, state_path, history_path, now_playing_path)
+
+        self.assertEqual(set(info), {"current", "previous", "upcoming", "listeners", "generated_at"})
+        self.assertEqual(info["current"]["track"], second.track)
+        self.assertEqual(info["previous"]["track"], first.track)
+        self.assertNotEqual(info["previous"]["track"], info["current"]["track"])
+        self.assertIsNotNone(info["upcoming"])
+        self.assertNotEqual(info["upcoming"]["track"], info["current"]["track"])
+        self.assertEqual(info["listeners"], {"current": None})
+
+        serialized = json.dumps(info)
+        for private_field in ("path", "url", "played_at_epoch", "percent", "plays", "filename", "initial_uri"):
+            self.assertNotIn(private_field, serialized)
+
+    def test_cli_public_info_writes_sanitized_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            manifest_path = write_manifest(temp_path)
+            state_path = temp_path / "scheduler" / "state.json"
+            history_path = temp_path / "played-history.jsonl"
+            now_playing_path = temp_path / "now-playing.json"
+            output_path = temp_path / "radio-info.json"
+            scheduler = Scheduler(load_manifest(manifest_path), seed="public-info-cli")
+            current = scheduler.next_track()
+            scheduler.save(state_path)
+            history_path.write_text(
+                json.dumps(
+                    {
+                        "played_at": "2026-01-01T00:00:00+0000",
+                        "played_at_epoch": 1.0,
+                        "artist": "CLI Artist",
+                        "title": current.display_title,
+                        "tracknumber": current.track,
+                        "album": "CLI Album",
+                        "genre": "CLI Genre",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            now_playing_path.write_text(json.dumps({"tracknumber": current.track, "title": current.display_title}), encoding="utf-8")
+
+            code = main([
+                "--manifest",
+                str(manifest_path),
+                "--state",
+                str(state_path),
+                "--history",
+                str(history_path),
+                "--now-playing",
+                str(now_playing_path),
+                "public-info",
+                "--output",
+                str(output_path),
+            ])
+
+            info = json.loads(output_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(code, 0)
+        self.assertEqual(info["current"]["track"], current.track)
+        self.assertIsNone(info["previous"])
+        self.assertEqual(info["listeners"], {"current": None})
+
+    def test_listener_count_uses_aac_mount_only(self) -> None:
+        status = {
+            "icestats": {
+                "source": [
+                    {"listenurl": "http://radio.admethius.quest:8000/aac", "listeners": 3},
+                    {"listenurl": "http://radio.admethius.quest:8000/opus", "listeners": 99},
+                ]
+            }
+        }
+
+        self.assertEqual(_listener_count_from_icecast_status(status), 3)
+
+    def test_listener_count_returns_none_without_aac_mount(self) -> None:
+        status = {"icestats": {"source": {"listenurl": "http://radio.admethius.quest:8000/opus", "listeners": 99}}}
+
+        self.assertIsNone(_listener_count_from_icecast_status(status))
 
     def test_library_play_rejects_unknown_track(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

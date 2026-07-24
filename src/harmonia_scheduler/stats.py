@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import json
+import urllib.parse
+import urllib.request
 from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from .scheduler import DEFAULT_MANIFEST_PATH, DEFAULT_STATE_PATH, Scheduler, SchedulerError, Track, load_manifest, load_state
 
 DEFAULT_HISTORY_PATH = Path("data/played-history.jsonl")
+DEFAULT_NOW_PLAYING_PATH = Path("data/now-playing.json")
 RECENT_PLAY_LIMIT = 10
 TOP_LIMIT = 10
 
@@ -44,6 +48,79 @@ def build_stats(
     }
 
 
+def build_public_info(
+    manifest_path: Path = DEFAULT_MANIFEST_PATH,
+    state_path: Path = DEFAULT_STATE_PATH,
+    history_path: Path = DEFAULT_HISTORY_PATH,
+    now_playing_path: Path = DEFAULT_NOW_PLAYING_PATH,
+    icecast_status_url: str | None = None,
+) -> dict[str, Any]:
+    tracks = load_manifest(manifest_path)
+    scheduler = Scheduler(tracks, load_state(state_path))
+    history = load_played_history(history_path)
+    now_playing = load_now_playing(now_playing_path)
+    radio_history = [entry for entry in history if entry.get("source") != "library"]
+    tracks_by_id = {track.track: track for track in tracks}
+    radio_metadata_by_track = _track_history_metadata(radio_history)
+    current = _current_public_summary(now_playing, radio_history, tracks_by_id)
+
+    return {
+        "current": current,
+        "previous": _previous_public_summary(radio_history, current, tracks_by_id),
+        "upcoming": _upcoming_public_summary(radio_history, tracks, scheduler.state["order"], tracks_by_id, radio_metadata_by_track, current),
+        "listeners": {"current": _icecast_listener_count(icecast_status_url)},
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+    }
+
+
+def _icecast_listener_count(status_url: str | None) -> int | None:
+    if not status_url:
+        return None
+
+    try:
+        with urllib.request.urlopen(status_url, timeout=5) as response:
+            status = json.loads(response.read().decode("utf-8"))
+    except (OSError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+
+    return _listener_count_from_icecast_status(status)
+
+
+def _listener_count_from_icecast_status(status: dict[str, Any], mounts: tuple[str, ...] = ("/aac",)) -> int | None:
+    sources = status.get("icestats", {}).get("source") if isinstance(status.get("icestats"), dict) else None
+    if isinstance(sources, dict):
+        source_entries = [sources]
+    elif isinstance(sources, list):
+        source_entries = [source for source in sources if isinstance(source, dict)]
+    else:
+        return None
+
+    matching_counts = [_source_listener_count(source) for source in source_entries if _source_matches_mount(source, mounts)]
+    counts = [count for count in matching_counts if count is not None]
+    if counts:
+        return sum(counts)
+
+    return None
+
+
+def _source_matches_mount(source: dict[str, Any], mounts: tuple[str, ...]) -> bool:
+    mount = _string_or_empty(source.get("mount"))
+    listen_url = _string_or_empty(source.get("listenurl"))
+    listen_path = urllib.parse.urlparse(listen_url).path if listen_url else ""
+    return any(value in mounts for value in (mount, listen_path))
+
+
+def _source_listener_count(source: dict[str, Any]) -> int | None:
+    value = source.get("listeners")
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        count = int(value)
+    except (TypeError, ValueError):
+        return None
+    return count if count >= 0 else None
+
+
 def load_played_history(path: Path = DEFAULT_HISTORY_PATH) -> list[dict[str, Any]]:
     if not path.exists():
         return []
@@ -63,9 +140,27 @@ def load_played_history(path: Path = DEFAULT_HISTORY_PATH) -> list[dict[str, Any
     return entries
 
 
+def load_now_playing(path: Path = DEFAULT_NOW_PLAYING_PATH) -> dict[str, Any]:
+    if not path.exists() or path.stat().st_size == 0:
+        return {}
+
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SchedulerError(f"now-playing JSON is not valid: {path}: {exc}") from exc
+    if not isinstance(raw, dict):
+        raise SchedulerError(f"now-playing JSON must be an object: {path}")
+    return raw
+
+
 def write_stats(path: Path, stats: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(format_stats(stats), encoding="utf-8")
+
+
+def write_public_info(path: Path, info: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(format_stats(info), encoding="utf-8")
 
 
 def format_stats(stats: dict[str, Any]) -> str:
@@ -176,6 +271,101 @@ def _playback_cycle_stats(
         "played_tracks": _track_summaries(played_ids, tracks_by_id),
         "pending_tracks": _track_summaries(pending_ids, tracks_by_id),
     }
+
+
+def _current_public_summary(
+    now_playing: dict[str, Any],
+    entries: list[dict[str, Any]],
+    tracks_by_id: dict[str, Track],
+) -> dict[str, Any] | None:
+    if now_playing:
+        track_id = _string_or_empty(now_playing.get("tracknumber")) or _string_or_empty(now_playing.get("radio_track"))
+        summary = _public_track_summary(track_id, tracks_by_id) if track_id else {}
+        for field in ("title", "artist", "album"):
+            value = _string_or_empty(now_playing.get(field))
+            if value:
+                summary[field] = value
+        if track_id and "track" not in summary:
+            summary["track"] = track_id
+        if summary:
+            return summary
+
+    for entry in reversed(entries):
+        return _history_public_summary(entry, tracks_by_id)
+    return None
+
+
+def _previous_public_summary(
+    entries: list[dict[str, Any]],
+    current: dict[str, Any] | None,
+    tracks_by_id: dict[str, Track],
+) -> dict[str, Any] | None:
+    for entry in reversed(entries):
+        if _matches_current(entry, current):
+            continue
+        return _history_public_summary(entry, tracks_by_id)
+    return None
+
+
+def _upcoming_public_summary(
+    entries: list[dict[str, Any]],
+    tracks: list[Track],
+    scheduler_order: list[str],
+    tracks_by_id: dict[str, Track],
+    metadata_by_track: dict[str, dict[str, Any]],
+    current: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    current_track = _string_or_empty(current.get("track")) if current else ""
+    pending_tracks = _playback_cycle_stats(entries, tracks, scheduler_order, tracks_by_id)["pending_tracks"]
+    for pending in pending_tracks:
+        track_id = _string_or_empty(pending.get("track"))
+        if track_id:
+            if current_track and track_id == current_track:
+                continue
+            summary = _public_track_summary(track_id, tracks_by_id)
+            for field in ("artist", "album"):
+                value = _string_or_empty(metadata_by_track.get(track_id, {}).get(field))
+                if value:
+                    summary[field] = value
+            return summary
+    return None
+
+
+def _history_public_summary(entry: dict[str, Any], tracks_by_id: dict[str, Track]) -> dict[str, Any]:
+    track_id = _string_or_empty(entry.get("tracknumber"))
+    summary: dict[str, Any] = _public_track_summary(track_id, tracks_by_id) if track_id else {"track": None}
+    title = _string_or_empty(entry.get("title"))
+    if title:
+        summary["title"] = title
+    for field in ("played_at", "artist", "album"):
+        value = _string_or_empty(entry.get(field))
+        if value:
+            summary[field] = value
+    return summary
+
+
+def _public_track_summary(track_id: str, tracks_by_id: dict[str, Track]) -> dict[str, Any]:
+    track = tracks_by_id.get(track_id)
+    if track is None:
+        return {"track": track_id, "title": None, "displayTitle": None}
+    return {"track": track.track, "title": track.title, "displayTitle": track.display_title}
+
+
+def _matches_current(entry: dict[str, Any], current: dict[str, Any] | None) -> bool:
+    if not current:
+        return False
+
+    entry_track = _string_or_empty(entry.get("tracknumber"))
+    current_track = _string_or_empty(current.get("track"))
+    if entry_track and current_track:
+        return entry_track == current_track
+
+    entry_title = _string_or_empty(entry.get("title"))
+    current_titles = {
+        _string_or_empty(current.get("title")),
+        _string_or_empty(current.get("displayTitle")),
+    }
+    return bool(entry_title and entry_title in current_titles)
 
 
 def _current_playback_cycle_ids(entries: list[dict[str, Any]], tracks_by_id: dict[str, Track]) -> list[str]:
