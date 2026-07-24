@@ -8,8 +8,9 @@ Harmonia is intentionally simple: point it at a folder of FLAC files, start Dock
 
 - streams a local FLAC library through Icecast
 - serves a minimal web player backed by AAC for broad browser/mobile compatibility
-- keeps optional higher-quality stream mounts available for player apps such as VLC
-- writes a small `now-playing.json` file for widgets or other personal sites
+- keeps an optional Opus stream mount available for compatible player apps
+- writes small public metadata files for the current, previous, possible next, and AAC listener count displays
+- serves a private operator/library dashboard with cycle progress, recent plays, top tracks/artists, and pending tracks
 - serves a random visual/mascot from a local image folder
 - keeps music files mounted read-only, because mutating the library would be goblin crime
 
@@ -39,18 +40,17 @@ The web UI is deliberately normal-person friendly:
 
 The page does not advertise advanced stream URLs. If you enable additional mounts, keep them for your own player apps, LAN usage, or trusted listeners. Bandwidth is not a charity event unless you choose violence.
 
-## Optional technical mounts
+## Optional technical mount
 
 The default Liquidsoap config also defines:
 
 ```text
 /opus  -> efficient high-quality stream for compatible clients
-/flac  -> lossless stream for VLC / desktop players / LAN goblins
 ```
 
-These are useful for personal listening, but the public web player only embeds `/aac`.
+This is useful for personal listening, but the public web player only embeds `/aac`.
 
-## Now playing metadata
+## Public metadata
 
 Liquidsoap writes the current track metadata to:
 
@@ -65,6 +65,20 @@ Caddy can expose it as:
 ```
 
 The metadata writer removes embedded cover art before writing JSON, so the endpoint stays small instead of becoming a cursed base64 brick.
+
+The scheduler also writes a public radio summary to:
+
+```text
+data/radio-info.json
+```
+
+Caddy exposes it as:
+
+```text
+/radio-info.json
+```
+
+That public payload is intentionally small: previous track, possible next track, and `listeners.current` for the AAC mount only. It does not expose private scheduler state or operator controls, because letting the internet poke the DJ booth would be clown engineering.
 
 ## Requirements
 
@@ -89,10 +103,16 @@ ICECAST_ADMIN_PASSWORD=change-this-also
 MUSIC_DIR=/path/to/your/music
 ```
 
-Start everything:
+Start everything directly with Compose:
 
 ```bash
 docker compose up -d
+```
+
+On the homelab host, the checked-in systemd unit wraps the tunnel profile and is the preferred hard restart path:
+
+```bash
+sudo systemctl restart harmonia.service
 ```
 
 Check services:
