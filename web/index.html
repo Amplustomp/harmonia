@@ -5,14 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Harmonia · Admethius Radio</title>
     <meta name="description" content="Harmonia: radio self-hosted de Admethius, servida desde el homelab." />
-    <link rel="stylesheet" href="styles.css?v=icon-center-1" />
+    <link rel="stylesheet" href="styles.css?v=sticker-volume-2" />
   </head>
   <body>
     <main class="shell">
       <section class="radio-card">
         <div class="visual-panel">
-          <img id="mascot" alt="Imagen aleatoria de la colección fastfetch" />
+          <img id="sticker" src="/fastfetch/lain.jpg" alt="Sticker aleatorio de la colección fastfetch" />
           <div class="soft-glow" aria-hidden="true"></div>
+          <button id="shuffleSticker" type="button">Cambiar sticker</button>
         </div>
 
         <section class="player-panel" aria-label="Radio player">
@@ -34,13 +35,15 @@
             </div>
           </div>
 
-          <div class="links">
-            <button id="shuffleMascot" type="button">Cambiar mascot</button>
+          <div class="volume-control">
+            <label for="volumeSlider">Volumen</label>
+            <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="0.8" aria-describedby="volumeValue" />
+            <span id="volumeValue" aria-live="polite">80%</span>
           </div>
         </section>
       </section>
     </main>
 
-    <script src="app.js?v=debug-diagnostics-1" type="module"></script>
+    <script src="app.js?v=sticker-volume-2" type="module"></script>
   </body>
 </html>

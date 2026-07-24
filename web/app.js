@@ -2,14 +2,17 @@ const player = document.querySelector('#player');
 const playButton = document.querySelector('#playButton');
 const statusText = document.querySelector('#status');
 const nowPlayingTitle = document.querySelector('#nowPlayingTitle');
-const mascot = document.querySelector('#mascot');
-const shuffleMascot = document.querySelector('#shuffleMascot');
+const sticker = document.querySelector('#sticker');
+const shuffleSticker = document.querySelector('#shuffleSticker');
+const volumeSlider = document.querySelector('#volumeSlider');
+const volumeValue = document.querySelector('#volumeValue');
 const playerPanel = document.querySelector('.player-panel');
 
 const currentStream = '/aac';
 const debugMode = new URLSearchParams(location.search).get('debug') === '1';
 const debugLogLimit = 16;
 const debugEntries = [];
+const fallbackSticker = '/fastfetch/lain.jpg';
 let userWantsPlayback = false;
 let reconnectTimer;
 let debugState;
@@ -125,15 +128,31 @@ function setupDebugPanel() {
   logDebugEvent('debug-enabled');
 }
 
-async function setRandomMascot() {
+async function setRandomSticker() {
   try {
     const response = await fetch('/image-manifest.json', { cache: 'no-cache' });
+    if (!response.ok) throw new Error(`Image manifest HTTP ${response.status}`);
     const images = await response.json();
+    if (!Array.isArray(images) || images.length === 0) throw new Error('Image manifest is empty or invalid');
+
     const image = images[Math.floor(Math.random() * images.length)];
-    mascot.src = `/fastfetch/${encodeURIComponent(image)}`;
-  } catch {
-    mascot.src = '/fastfetch/lain.jpg';
+    if (typeof image !== 'string' || image.trim() === '') throw new Error('Image manifest selected an invalid filename');
+
+    sticker.src = `/fastfetch/${encodeURIComponent(image)}`;
+  } catch (error) {
+    sticker.src = fallbackSticker;
+    console.warn('Image manifest unavailable; using fallback sticker.', error);
   }
+}
+
+function formatVolume(value) {
+  return `${Math.round(Number(value) * 100)}%`;
+}
+
+function setPlayerVolume(value) {
+  player.volume = Number(value);
+  volumeValue.textContent = formatVolume(value);
+  volumeSlider.setAttribute('aria-valuetext', formatVolume(value));
 }
 
 function setStatus(text) {
@@ -161,8 +180,9 @@ async function updateNowPlaying() {
     if (!response.ok) throw new Error('metadata not ready');
     const metadata = await response.json();
     nowPlayingTitle.textContent = formatMetadata(metadata);
-  } catch {
+  } catch (error) {
     nowPlayingTitle.textContent = 'Esperando metadata del stream...';
+    console.warn('Now-playing metadata unavailable.', error);
   }
 }
 
@@ -174,7 +194,8 @@ async function togglePlayback() {
       await player.play();
       playButton.classList.add('is-playing');
       setStatus('Transmitiendo Harmonia');
-    } catch {
+    } catch (error) {
+      console.warn('Audio playback could not start.', error);
       setStatus('No pude iniciar el audio. Prueba AAC u Opus.');
     }
   } else {
@@ -211,7 +232,8 @@ function scheduleReconnect(reason = 'audio event') {
 }
 
 playButton.addEventListener('click', togglePlayback);
-shuffleMascot.addEventListener('click', setRandomMascot);
+shuffleSticker.addEventListener('click', setRandomSticker);
+volumeSlider.addEventListener('input', () => setPlayerVolume(volumeSlider.value));
 
 if (debugMode) {
   ['loadstart', 'play', 'pause', 'waiting', 'stalled', 'error', 'ended', 'playing', 'canplay', 'canplaythrough', 'suspend', 'abort', 'emptied'].forEach((eventName) => {
@@ -231,6 +253,7 @@ player.addEventListener('playing', () => {
 });
 
 setupDebugPanel();
-setRandomMascot();
+setPlayerVolume(volumeSlider.value);
 updateNowPlaying();
+setRandomSticker();
 setInterval(updateNowPlaying, 15000);
