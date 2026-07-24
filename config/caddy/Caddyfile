@@ -26,6 +26,13 @@
 		file_server
 	}
 
+	handle /radio-info.json {
+		header Cache-Control "no-store, max-age=0"
+		root * /srv/state
+		rewrite * /radio-info.json
+		file_server
+	}
+
 	handle {
 		root * /srv/site
 		file_server
@@ -80,6 +87,13 @@
 			header Cache-Control "no-store, max-age=0"
 			root * /srv/state
 			rewrite * /stats.json
+			file_server
+		}
+
+		handle /now-playing.json {
+			header Cache-Control "no-store, max-age=0"
+			root * /srv/state
+			rewrite * /now-playing.json
 			file_server
 		}
 

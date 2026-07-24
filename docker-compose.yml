@@ -86,8 +86,8 @@ services:
       - -c
       - |
         mkdir -p /state/library /state/scheduler
-        touch /state/now-playing.json /state/played-history.jsonl /state/stats.json
-        chown liquidsoap:liquidsoap /state /state/now-playing.json /state/played-history.jsonl /state/stats.json
+        touch /state/now-playing.json /state/played-history.jsonl /state/stats.json /state/radio-info.json
+        chown liquidsoap:liquidsoap /state /state/now-playing.json /state/played-history.jsonl /state/stats.json /state/radio-info.json
         chown -R liquidsoap:liquidsoap /state/scheduler
         PYTHONPATH=/app/src python3 -m harmonia_scheduler.cli library --music-root /music --manifest-output /state/library/manifest.json --playlist-output /tmp/radio.m3u
         test -s /tmp/radio.m3u
@@ -106,6 +106,13 @@ services:
           else
             echo "harmonia: scheduler stats generation failed; keeping existing stats file" >&2
             rm -f /state/stats.json.tmp
+          fi
+
+          if su -s /bin/sh liquidsoap -c 'PYTHONPATH=/app/src python3 -m harmonia_scheduler.cli --manifest /state/library/manifest.json --state /state/scheduler/state.json --history /state/played-history.jsonl --now-playing /state/now-playing.json public-info --icecast-status-url http://icecast:8000/status-json.xsl --output /state/radio-info.json.tmp'; then
+            mv /state/radio-info.json.tmp /state/radio-info.json
+          else
+            echo "harmonia: public radio info generation failed; keeping existing radio info file" >&2
+            rm -f /state/radio-info.json.tmp
           fi
         }
 
