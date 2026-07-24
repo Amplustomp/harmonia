@@ -24,6 +24,7 @@ Services:
 - `liquidsoap`: reads local FLAC files and pushes stream mounts to Icecast
 - `icecast`: serves the audio streams
 - `caddy`: serves the static web player and proxies stream routes
+- `library-events`: records confirmed private library plays into playback history
 
 The Liquidsoap service builds a small local image (`harmonia-liquidsoap:local`) so the Python scheduler can run inside the same container before Liquidsoap starts.
 
@@ -98,7 +99,7 @@ Check services:
 
 ```bash
 docker compose ps
-docker compose logs -f caddy liquidsoap icecast
+docker compose logs -f caddy liquidsoap icecast library-events
 ```
 
 Stop everything:
@@ -140,7 +141,7 @@ uv run harmonia-scheduler stats
 uv run harmonia-scheduler stats --output data/stats.json
 ```
 
-The stats include total track count, generated scheduler state, playback-cycle progress inferred from `played-history.jsonl`, pending tracks, recent plays, top tracks, and top artists. The Liquidsoap container refreshes `data/stats.json` every `STATS_REFRESH_SECONDS` seconds, defaulting to 60. Caddy exposes `/stats.json`, `/played-history.jsonl`, and `/scheduler-state.json` only on the private `:8091` library surface, behind the same LAN/Cloudflare Access guard as `/manifest.json`. The public player on `:8090` does not depend on these files.
+The stats include total track count, generated scheduler state, playback-cycle progress inferred from radio entries in `played-history.jsonl`, pending tracks, recent plays, top tracks, and top artists. The Liquidsoap container refreshes `data/stats.json` every `STATS_REFRESH_SECONDS` seconds, defaulting to 60. Caddy exposes `/stats.json`, `/played-history.jsonl`, and `/scheduler-state.json` only on the private `:8091` library surface, behind the same LAN/Cloudflare Access guard as `/manifest.json`. The private library page also records confirmed local plays through `POST /library-play`, so library loops count toward recent/top totals without advancing the radio playback cycle. The public player on `:8090` does not depend on these files.
 
 To pick up newly added albums:
 

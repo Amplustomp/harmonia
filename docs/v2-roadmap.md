@@ -61,6 +61,7 @@ Current read-only file slice:
 
 - `harmonia-scheduler stats` prints stats JSON, or writes it with `--output data/stats.json`.
 - Private Caddy `:8091` exposes `/stats.json`, `/played-history.jsonl`, and `/scheduler-state.json` behind the existing local/LAN/Cloudflare Access guard.
+- Private Caddy `:8091` proxies `POST /library-play` to an internal stdlib Python writer. Confirmed local library plays append `source: "library"` entries to `played-history.jsonl`, contributing to recent/top totals while radio cycle progress only considers radio entries.
 - The public player on `:8090` stays independent of stats.
 
 Future controls:
